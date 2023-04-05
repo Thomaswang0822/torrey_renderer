@@ -43,6 +43,7 @@ set(SRCS src/3rdparty/miniz.h
          src/torrey.h
          src/transform.h
          src/vector.h
+         src/ray.h
          src/compute_normals.cpp
          src/hw1.cpp
          src/hw2.cpp

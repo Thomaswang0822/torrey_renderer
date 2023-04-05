@@ -3,19 +3,42 @@
 
 using namespace hw1;
 
+// Follow RTOW section 4.2
 Image3 hw_1_1(const std::vector<std::string> &/*params*/) {
     // Homework 1.1: generate camera rays and output the ray directions
     // The camera is positioned at (0, 0, 0), facing towards (0, 0, -1),
     // with an up vector (0, 1, 0) and a vertical field of view of 90 degree.
 
     Image3 img(640 /* width */, 480 /* height */);
+    const double aspect_ratio = 4.0 / 3.0;
 
+    // Camera consts
+    auto viewport_height = 2.0;
+    auto viewport_width = aspect_ratio * viewport_height;
+    auto focal_length = 1.0;
+
+    Vector3 origin = Vector3{0.0, 0.0, 0.0};
+    Vector3 horizontal = Vector3{viewport_width, 0.0, 0.0};
+    Vector3 vertical = Vector3(0.0, viewport_height, 0.0);
+    Vector3 lower_left = origin - horizontal/2.0 - vertical/2.0 
+                        - Vector3(0.0, 0.0, focal_length);
+
+    ray localRay;
+    Real u, v;
+    Vector3 pixel_pos;
     for (int y = 0; y < img.height; y++) {
+        // Why not here
+        v = Real(y) / (img.height - 1);
         for (int x = 0; x < img.width; x++) {
-            img(x, y) = 
-                Vector3{(x + Real(0.5)) / img.width,
-                        (y + Real(0.5)) / img.height,
-                        Real(0)};
+            // shoot a ray
+            u = Real(x) / (img.width - 1);
+            pixel_pos = lower_left + u*horizontal + v*vertical;
+            localRay = ray(origin, pixel_pos, true);
+            img(x, img.height-1 - y) = localRay.direction();
+
+            /* if (y >= 240) {
+                img(x, y) = Vector3(0.0, 0.0, 0.0);
+            } */
         }
     }
     return img;
