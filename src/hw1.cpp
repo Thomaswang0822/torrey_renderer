@@ -17,8 +17,8 @@ Image3 hw_1_1(const std::vector<std::string> &/*params*/) {
     auto viewport_width = aspect_ratio * viewport_height;
     auto focal_length = 1.0;
 
-    Vector3 origin = Vector3{0.0, 0.0, 0.0};
-    Vector3 horizontal = Vector3{viewport_width, 0.0, 0.0};
+    Vector3 origin = Vector3(0.0, 0.0, 0.0);
+    Vector3 horizontal = Vector3(viewport_width, 0.0, 0.0);
     Vector3 vertical = Vector3(0.0, viewport_height, 0.0);
     Vector3 lower_left = origin - horizontal/2.0 - vertical/2.0 
                         - Vector3(0.0, 0.0, focal_length);
@@ -35,20 +35,74 @@ Image3 hw_1_1(const std::vector<std::string> &/*params*/) {
             pixel_pos = lower_left + u*horizontal + v*vertical;
             localRay = ray(origin, pixel_pos, true);
             img(x, img.height-1 - y) = localRay.direction();
-
-            /* if (y >= 240) {
-                img(x, y) = Vector3(0.0, 0.0, 0.0);
-            } */
         }
     }
     return img;
 }
 
+// Section 6.2
+double hit_sphere(const Sphere& ball, const ray& r) {
+    Vector3 oc = r.origin() - ball.center;
+    // a,b,c refer to those in at^2 + bt + c = 0
+    auto a = length_squared(r.direction());
+    auto half_b = dot(oc, r.direction());
+    auto c = length_squared(oc) - ball.radius * ball.radius;
+    auto discriminant = half_b*half_b - a*c;
+    if (discriminant < 0) {
+        return -1.0;
+    } else {
+        // minus because we want the closer hitting point -> smaller t
+        return (-half_b - sqrt(discriminant) ) / a;
+    }
+
+}
+
 Image3 hw_1_2(const std::vector<std::string> &/*params*/) {
     // Homework 1.2: intersect the rays generated from hw_1_1
     // with a unit sphere located at (0, 0, -2)
+    Sphere sphere = {
+        Vector3(0.0, 0.0, -2.0), // center
+        Real(1.0),    // unit sphere
+        0       // material irrelevant for now
+    };
 
     Image3 img(640 /* width */, 480 /* height */);
+    const double aspect_ratio = 4.0 / 3.0;
+
+    // Camera consts
+    auto viewport_height = 2.0;
+    auto viewport_width = aspect_ratio * viewport_height;
+    auto focal_length = 1.0;
+
+    Vector3 origin = Vector3(0.0, 0.0, 0.0);
+    Vector3 horizontal = Vector3(viewport_width, 0.0, 0.0);
+    Vector3 vertical = Vector3(0.0, viewport_height, 0.0);
+    Vector3 lower_left = origin - horizontal/2.0 - vertical/2.0 
+                        - Vector3(0.0, 0.0, focal_length);
+
+    ray localRay;
+    Real u, v;
+    Vector3 pixel_pos;
+    double hitResult; Vector3 sphereNormal;
+    for (int y = 0; y < img.height; y++) {
+        // Why not here
+        v = Real(y) / (img.height - 1);
+        for (int x = 0; x < img.width; x++) {
+            // shoot a ray
+            u = Real(x) / (img.width - 1);
+            pixel_pos = lower_left + u*horizontal + v*vertical;
+            localRay = ray(origin, pixel_pos, true);
+            
+            // try to hit the sphere
+            hitResult = hit_sphere(sphere, localRay);
+            if (abs(hitResult + 1.0) < 1e-9) {  // if hitResult == -1.0
+                img(x, img.height-1 - y) = {0.5, 0.5, 0.5};
+            } else {
+                sphereNormal = normalize(localRay.at(hitResult) - sphere.center);
+                img(x, img.height-1 - y) = (sphereNormal + 1.0) / 2.0;
+            }
+        }
+    }
 
     return img;
 }
