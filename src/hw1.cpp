@@ -11,12 +11,6 @@ Image3 hw_1_1(const std::vector<std::string> &/*params*/) {
     // with an up vector (0, 1, 0) and a vertical field of view of 90 degree.
 
     Image3 img(640 /* width */, 480 /* height */);
-    const double aspect_ratio = 4.0 / 3.0;
-
-    // Camera consts
-    auto viewport_height = 2.0;
-    auto viewport_width = aspect_ratio * viewport_height;
-    auto focal_length = 1.0;
 
     // Camera consts -> Camera object
     Vector3 origin(0.0, 0.0, 0.0);
@@ -72,7 +66,6 @@ Image3 hw_1_2(const std::vector<std::string> &/*params*/) {
     };
 
     Image3 img(640 /* width */, 480 /* height */);
-    const double aspect_ratio = 4.0 / 3.0;
 
     // Camera consts -> Camera object
     Vector3 origin(0.0, 0.0, 0.0);
@@ -216,7 +209,7 @@ Image3 hw_1_4(const std::vector<std::string> &params) {
             // and keep the nearest hit
             hitResult = infinity<double>();
             sphereId = -1;
-            for (auto i=0; i<scene.shapes.size(); ++i) {
+            for (unsigned int i=0; i<scene.shapes.size(); ++i) {
                 sphere = scene.shapes[i];
                 currHit = hit_sphere(sphere, localRay);
                 // currHit > 0 to make sure the ray doesn't go "backward"
@@ -241,6 +234,72 @@ Image3 hw_1_4(const std::vector<std::string> &params) {
     return img;
 }
 
+
+bool isVisible(Vector3& shadingPt, Vector3& lightPos, std::vector<Sphere> all_spheres) {
+    double d = distance(shadingPt, lightPos);
+    // shot ray from light to shadingPt
+    ray localRay(lightPos, shadingPt, true);
+    // test hitting point
+    // Baseline version: traverse all spheres and test
+    double hit_t = infinity<double>();
+    for (Sphere sphere : all_spheres) {
+        hit_t = std::min({hit_t, hit_sphere(sphere, localRay)});
+    }
+    // Epsilon Trick
+    const double eps = 1e-4;
+    return !bool(hit_t > eps && hit_t < (1-eps) * d);
+}
+
+
+/**
+ * @brief Compute the color of a given pixel with precomputed info
+ * 
+ * @param scene: gives light info, 
+ * @param sphereId: gives the hitting object and its info, like Kd
+ * @param shadingPt: gives geometric info
+ * 
+ * @return The color resulted from ALL lights in the scene
+ * 
+ */
+Vector3 compute_color(Scene& scene, int sphereId, Vector3 shadingPt) {
+    Vector3 result = Vector3(0.0, 0.0, 0.0);
+
+    // sphere attributes:
+    Sphere sphere = scene.shapes[sphereId];
+    Vector3 Kd = scene.materials[sphere.material_id].color;
+
+    // Pure geometric info:
+    Vector3 normal = normalize(shadingPt - sphere.center);
+
+    // attributes that are different for each light
+    Vector3 l;  // normalized shadingPt to light position
+    Real dsq;  // distance squared: shadingPt to light position
+    for (PointLight light : scene.lights) {
+        l = normalize(light.position - shadingPt);
+        dsq = distance_squared(shadingPt, light.position);
+        if (isVisible(shadingPt, light.position, scene.shapes)) {
+            // abs(dot(normal, l)) can be replaced by using helper function below
+            // (incomingRayOutside(-l, normal))? dot(normal, -l):dot(normal, -l);
+            // but obviously it's unnecessary here.
+            result += Kd * std::max( abs(dot(normal, l)), 0.0 ) * 
+                c_INVPI * light.intensity / dsq;
+        }
+    }
+    return result;
+}
+
+
+/**
+ * @brief RTOW Section 6.4, Listing 16. Determine if an incoming Ray
+ * to an object (sphere) is outside or inside the sphere
+ * 
+ * @return (bool) the incoming Ray is outside
+ */
+inline bool incomingRayOutside(Vector3 incomingDir, Vector3 outNormal) {
+    return !bool(dot(incomingDir, outNormal) > 0.0);
+}
+
+
 Image3 hw_1_5(const std::vector<std::string> &params) {
     // Homework 1.5: render the scenes defined in hw1_scenes.h,
     // light them using the point lights in the scene.
@@ -251,8 +310,53 @@ Image3 hw_1_5(const std::vector<std::string> &params) {
     int scene_id = std::stoi(params[0]);
     UNUSED(scene_id); // avoid unused warning
     // Your scene is hw1_scenes[scene_id]
+    Scene scene = hw1_scenes[scene_id];
+
 
     Image3 img(640 /* width */, 480 /* height */);
+    // use scene.camera
+    ray localRay;
+    Real u, v;
+    Vector3 pixel_pos;
+    double hitResult, currHit;
+    int sphereId = -1; Sphere sphere;
+    for (int y = 0; y < img.height; y++) {
+        // Why not here
+        v = Real(y) / (img.height - 1);
+        for (int x = 0; x < img.width; x++) {
+            // shoot a ray
+            u = Real(x) / (img.width - 1);
+            localRay = scene.camera.get_ray(u, v);
+            
+            // CHANGE: try to hit the EVERY sphere
+            // and keep the nearest hit
+            hitResult = infinity<double>();
+            sphereId = -1;
+            for (unsigned int i=0; i<scene.shapes.size(); ++i) {
+                sphere = scene.shapes[i];
+                currHit = hit_sphere(sphere, localRay);
+                // currHit > 0 to make sure the ray doesn't go "backward"
+                // This can happen when the sphere is behind 
+                // or is huge and encloses the camera
+                if (currHit > 0 && currHit < hitResult) {
+                    hitResult = currHit;
+                    sphereId = i;
+                }
+                
+            }
+            if (sphereId == -1) {
+                // no hit
+                img(x, img.height-1 - y) = {0.5, 0.5, 0.5};
+            } else {
+                // compute color via a helper function
+                img(x, img.height-1 - y) = compute_color(
+                    scene, 
+                    sphereId, 
+                    localRay.at(hitResult)    // hit position
+                );
+            }
+        }
+    }
 
     return img;
 }
