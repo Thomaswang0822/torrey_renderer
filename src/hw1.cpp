@@ -48,10 +48,16 @@ double hit_sphere(const Sphere& ball, const ray& r) {
     auto c = length_squared(oc) - ball.radius * ball.radius;
     auto discriminant = half_b*half_b - a*c;
     if (discriminant < 0) {
-        return -1.0;
+        // return -1.0;
+        return infinity<double>();
     } else {
         // minus because we want the closer hitting point -> smaller t
-        return (-half_b - sqrt(discriminant) ) / a;
+        double smallerRoot = (-half_b - sqrt(discriminant) ) / a;
+        if (smallerRoot < 0.0) {
+            // the larger root, may also be negative
+            return (-half_b + sqrt(discriminant) ) / a;
+        }
+        return smallerRoot;
     }
 
 }
@@ -87,7 +93,7 @@ Image3 hw_1_2(const std::vector<std::string> &/*params*/) {
             
             // try to hit the sphere
             hitResult = hit_sphere(sphere, localRay);
-            if (abs(hitResult + 1.0) < 1e-9) {  // if hitResult == -1.0
+            if (hitResult > 1e9) {  // if hitResult == inf
                 img(x, img.height-1 - y) = {0.5, 0.5, 0.5};
             } else {
                 sphereNormal = normalize(localRay.at(hitResult) - sphere.center);
@@ -167,7 +173,7 @@ Image3 hw_1_3(const std::vector<std::string> &params) {
             
             // try to hit the sphere
             hitResult = hit_sphere(sphere, localRay);
-            if (abs(hitResult + 1.0) < 1e-9) {  // if hitResult == -1.0
+            if (hitResult > 1e9) {  // if hitResult == inf
                 img(x, img.height-1 - y) = {0.5, 0.5, 0.5};
             } else {
                 sphereNormal = normalize(localRay.at(hitResult) - sphere.center);
@@ -188,8 +194,49 @@ Image3 hw_1_4(const std::vector<std::string> &params) {
     int scene_id = std::stoi(params[0]);
     UNUSED(scene_id); // avoid unused warning
     // Your scene is hw1_scenes[scene_id]
+    Scene scene = hw1_scenes[scene_id];
+
 
     Image3 img(640 /* width */, 480 /* height */);
+    // use scene.camera
+    ray localRay;
+    Real u, v;
+    Vector3 pixel_pos;
+    double hitResult, currHit;
+    int sphereId = -1; Sphere sphere;
+    for (int y = 0; y < img.height; y++) {
+        // Why not here
+        v = Real(y) / (img.height - 1);
+        for (int x = 0; x < img.width; x++) {
+            // shoot a ray
+            u = Real(x) / (img.width - 1);
+            localRay = scene.camera.get_ray(u, v);
+            
+            // CHANGE: try to hit the EVERY sphere
+            // and keep the nearest hit
+            hitResult = infinity<double>();
+            sphereId = -1;
+            for (auto i=0; i<scene.shapes.size(); ++i) {
+                sphere = scene.shapes[i];
+                currHit = hit_sphere(sphere, localRay);
+                // currHit > 0 to make sure the ray doesn't go "backward"
+                // This can happen when the sphere is behind 
+                // or is huge and encloses the camera
+                if (currHit > 0 && currHit < hitResult) {
+                    hitResult = currHit;
+                    sphereId = i;
+                }
+                
+            }
+            if (sphereId == -1) {
+                // no hit
+                img(x, img.height-1 - y) = {0.5, 0.5, 0.5};
+            } else {
+                img(x, img.height-1 - y) = scene.materials[scene.shapes[sphereId].material_id].color;
+            }
+        }
+    }
+
 
     return img;
 }
