@@ -14,7 +14,9 @@ struct Image {
     Image() {}
     Image(int w, int h) : width(w), height(h) {
         data.resize(w * h);
-        memset(data.data(), 0, sizeof(T) * data.size());
+        // memset(data.data(), 0, sizeof(T) * data.size());
+        // By ChatGPT: same line without warning
+        std::fill(data.begin(), data.end(), T());
     }
 
     T &operator()(int x) {
