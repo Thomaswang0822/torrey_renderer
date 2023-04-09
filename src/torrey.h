@@ -11,6 +11,7 @@
 #include <iostream>
 #include <limits>
 #include <algorithm>
+#include <random>
 
 // for suppressing unused warnings
 #define UNUSED(x) (void)(x)

@@ -1,5 +1,6 @@
 #include "hw1.h"
 #include "hw1_scenes.h"
+#include "pcg.h"
 // #include "Camera.h"
 
 using namespace hw1;
@@ -376,12 +377,69 @@ Image3 hw_1_6(const std::vector<std::string> &params) {
             scene_id = std::stoi(params[i]);
         }
     }
+    double inv_spp = 1.0 / spp;
 
     UNUSED(scene_id); // avoid unused warning
     UNUSED(spp); // avoid unused warning
     // Your scene is hw1_scenes[scene_id]
+    Scene scene = hw1_scenes[scene_id];
 
-    Image3 img(160 /* width */, 120 /* height */);
+
+    Image3 img(640 /* width */, 480 /* height */);
+    // use scene.camera
+    ray localRay;
+    Real u, v;
+    Vector3 pixel_pos;
+    double hitResult, currHit;
+    int sphereId = -1; Sphere sphere;
+    // cannot directly store color now
+    Vector3 pixel_color;
+    // setup random geneator
+    pcg32_state rng = init_pcg32();
+    // std::uniform_real_distribution<double> randZeroOne(0.0, 1.0);
+    // usage: randZeroOne(rng);
+    for (int y = 0; y < img.height; y++) {
+        for (int x = 0; x < img.width; x++) {
+            // for each pixel, shoot may random rays thru
+            pixel_color = {0.0, 0.0, 0.0};
+            for (int s=0; s<spp; ++s) {    
+                // shoot a ray
+                u = Real(x + next_pcg32_real<double>(rng)) / (img.width - 1);
+                v = Real(y + next_pcg32_real<double>(rng)) / (img.height - 1);
+                localRay = scene.camera.get_ray(u, v);
+                
+                // CHANGE: try to hit the EVERY sphere
+                // and keep the nearest hit
+                hitResult = infinity<double>();
+                sphereId = -1;
+                for (unsigned int i=0; i<scene.shapes.size(); ++i) {
+                    sphere = scene.shapes[i];
+                    currHit = hit_sphere(sphere, localRay);
+                    // currHit > 0 to make sure the ray doesn't go "backward"
+                    // This can happen when the sphere is behind 
+                    // or is huge and encloses the camera
+                    if (currHit > 0 && currHit < hitResult) {
+                        hitResult = currHit;
+                        sphereId = i;
+                    }
+                    
+                }
+                if (sphereId == -1) {
+                    // no hit
+                    pixel_color += {0.5, 0.5, 0.5};
+                } else {
+                    // compute color via a helper function
+                    pixel_color += compute_color(
+                        scene, 
+                        sphereId, 
+                        localRay.at(hitResult)    // hit position
+                    );
+                }
+            }
+            // average and write color
+            img(x, img.height-1 - y) = pixel_color * inv_spp;
+        }
+    }
 
     return img;
 }
