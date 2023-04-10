@@ -48,9 +48,10 @@ double hit_sphere(const Sphere& ball, const ray& r) {
     } else {
         // minus because we want the closer hitting point -> smaller t
         double smallerRoot = (-half_b - sqrt(discriminant) ) / a;
-        if (smallerRoot < 0.0) {
-            // the larger root, may also be negative
-            return (-half_b + sqrt(discriminant) ) / a;
+        double biggerRoot = (-half_b + sqrt(discriminant) ) / a;
+        if (smallerRoot < 1e-4) {
+            // check the larger root
+            return (biggerRoot < 1e-4)? infinity<double>() : biggerRoot;
         }
         return smallerRoot;
     }
@@ -254,6 +255,7 @@ bool isVisible(Vector3& shadingPt, Vector3& lightPos, std::vector<Sphere> all_sp
 
 /**
  * @brief Compute the color of a given pixel with precomputed info
+ * @details point lights and Lambertian (diffuse) surface
  * 
  * @param scene: gives light info, 
  * @param sphereId: gives the hitting object and its info, like Kd
@@ -262,7 +264,7 @@ bool isVisible(Vector3& shadingPt, Vector3& lightPos, std::vector<Sphere> all_sp
  * @return The color resulted from ALL lights in the scene
  * 
  */
-Vector3 compute_color(Scene& scene, int sphereId, Vector3 shadingPt) {
+Vector3 compute_diffuse_color(Scene& scene, int sphereId, Vector3 shadingPt) {
     Vector3 result = Vector3(0.0, 0.0, 0.0);
 
     // sphere attributes:
@@ -296,7 +298,7 @@ Vector3 compute_color(Scene& scene, int sphereId, Vector3 shadingPt) {
  * 
  * @return (bool) the incoming Ray is outside
  */
-inline bool incomingRayOutside(Vector3 incomingDir, Vector3 outNormal) {
+inline bool incomingRayOutside(Vector3& incomingDir, Vector3& outNormal) {
     return !bool(dot(incomingDir, outNormal) > 0.0);
 }
 
@@ -350,7 +352,7 @@ Image3 hw_1_5(const std::vector<std::string> &params) {
                 img(x, img.height-1 - y) = {0.5, 0.5, 0.5};
             } else {
                 // compute color via a helper function
-                img(x, img.height-1 - y) = compute_color(
+                img(x, img.height-1 - y) = compute_diffuse_color(
                     scene, 
                     sphereId, 
                     localRay.at(hitResult)    // hit position
@@ -429,7 +431,7 @@ Image3 hw_1_6(const std::vector<std::string> &params) {
                     pixel_color += {0.5, 0.5, 0.5};
                 } else {
                     // compute color via a helper function
-                    pixel_color += compute_color(
+                    pixel_color += compute_diffuse_color(
                         scene, 
                         sphereId, 
                         localRay.at(hitResult)    // hit position
@@ -442,6 +444,76 @@ Image3 hw_1_6(const std::vector<std::string> &params) {
     }
 
     return img;
+}
+
+ray mirror_ray(ray& rayIn, Vector3 outNormal, Vector3& hitPt) {
+    if (dot(rayIn.direction(), outNormal) > 0.0) {
+        throw std::runtime_error("Direction is incorrect");
+    }
+    Vector3 outDir = normalize(rayIn.direction() - 2*dot(rayIn.direction(),outNormal)*outNormal);
+    if (dot(outDir, outNormal) < 0.0) {
+        throw std::runtime_error("OUT direction is incorrect");
+    }
+    return ray(
+        hitPt,      // origin
+        outDir  // reflected dir
+    );
+}
+
+
+/**
+ * @brief mirror-only raytracer to compute the pixel color
+ * 
+ * @note It can handle
+ * A. No hit -> (0.5, 0.5, 0.5)
+ * B. hitting diffuse (Lambertian) surface -> compute_diffuse_color()
+ * C. hitting mirror surface -> recursive call
+ * 
+ * @param scene 
+ * @param localRay: can be primary ray (from camera) or reflected ray 
+ * @param recDepth: capped at 20; defined in hw1.h
+ * @return Vector3 
+ */
+Vector3 compute_pixel_color(Scene& scene, ray& localRay, unsigned int recDepth=MAX_RECURSION) {
+    // Step 1: detect hit
+    double hitResult = infinity<double>();
+    int sphereId = -1;
+    Sphere sphere;
+    double currHit;
+    const double eps = 1e-4;
+    for (unsigned int i=0; i<scene.shapes.size(); ++i) {
+        sphere = scene.shapes[i];
+        currHit = hit_sphere(sphere, localRay);
+        if (currHit > eps && currHit < hitResult) {
+            hitResult = currHit;
+            sphereId = i;
+        }   
+    }
+    if (sphereId == -1) {
+        // no hit
+        return Vector3(0.5, 0.5, 0.5);
+    }
+
+    // Step 2: found hit -> act according to diffuse or mirror
+    sphere = scene.shapes[sphereId];
+    Material currMaterial = scene.materials[sphere.material_id];
+    if (currMaterial.type == MaterialType::Diffuse || recDepth == 0) {
+        // call helper function; defined before hw 1_5        
+        return compute_diffuse_color(scene, sphereId, localRay.at(hitResult));
+    } else {
+        // mirror refect and recursion
+        Vector3 hitPt = localRay.at(hitResult);
+        ray rayOut = mirror_ray(
+            localRay,
+            normalize(hitPt - sphere.center),   // normal
+            hitPt
+        );
+        
+        return currMaterial.color // color at current hitting pt
+                * compute_pixel_color(scene, rayOut, recDepth=recDepth-1);   // element-wise mutiply
+    }
+
+    return Vector3(0.0, 0.0, 0.0);  // all-black to indicate a bug
 }
 
 Image3 hw_1_7(const std::vector<std::string> &params) {
@@ -459,12 +531,40 @@ Image3 hw_1_7(const std::vector<std::string> &params) {
             scene_id = std::stoi(params[i]);
         }
     }
+    double inv_spp = 1.0 / spp;
 
     UNUSED(scene_id); // avoid unused warning
     UNUSED(spp); // avoid unused warning
     // Your scene is hw1_scenes[scene_id]
+    Scene scene = hw1_scenes[scene_id];
 
     Image3 img(640 /* width */, 480 /* height */);
+    // use scene.camera
+    ray localRay;
+    Real u, v;
+    // cannot directly store color now
+    Vector3 pixel_color;
+    // setup random geneator
+    pcg32_state rng = init_pcg32();
+    // std::uniform_real_distribution<double> randZeroOne(0.0, 1.0);
+    // usage: randZeroOne(rng);
+    for (int y = 0; y < img.height; y++) {
+        for (int x = 0; x < img.width; x++) {
+            // for each pixel, shoot may random rays thru
+            pixel_color = {0.0, 0.0, 0.0};
+            for (int s=0; s<spp; ++s) {    
+                // shoot a ray
+                u = Real(x + next_pcg32_real<double>(rng)) / (img.width - 1);
+                v = Real(y + next_pcg32_real<double>(rng)) / (img.height - 1);
+                localRay = scene.camera.get_ray(u, v);
+                
+                // CHANGE: call compute_pixel_color() which deal with hit & no-hit
+                pixel_color += compute_pixel_color(scene, localRay);
+            }
+            // average and write color
+            img(x, img.height-1 - y) = pixel_color * inv_spp;
+        }
+    }
 
     return img;
 }
