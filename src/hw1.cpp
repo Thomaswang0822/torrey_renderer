@@ -448,7 +448,14 @@ Image3 hw_1_6(const std::vector<std::string> &params) {
 
 ray mirror_ray(ray& rayIn, Vector3 outNormal, Vector3& hitPt) {
     if (dot(rayIn.direction(), outNormal) > 0.0) {
-        throw std::runtime_error("Direction is incorrect");
+        // std::cout << rayIn.direction() << outNormal << std::endl;
+        // throw std::runtime_error("Direction is incorrect");
+
+        // This may happen very rarely when 2 spheres overlap and
+        // the hitting point is close to the saddle point
+        // FIX: out dir = in dir
+        std::cout << "Ray is inside a sphere; just penetrate thru" << std::endl;
+        return ray(hitPt, rayIn.direction());
     }
     Vector3 outDir = normalize(rayIn.direction() - 2*dot(rayIn.direction(),outNormal)*outNormal);
     if (dot(outDir, outNormal) < 0.0) {
@@ -484,6 +491,16 @@ Vector3 compute_pixel_color(Scene& scene, ray& localRay, unsigned int recDepth=M
     for (unsigned int i=0; i<scene.shapes.size(); ++i) {
         sphere = scene.shapes[i];
         currHit = hit_sphere(sphere, localRay);
+        /* if (distance(localRay.origin(), sphere.center) < 0.5 - 1e-6) {
+            std::cout << "Create mirror ray at depth: " << recDepth << std::endl;
+            std::cerr << "Ray orig: " << localRay.origin() << std::endl;
+            std::cerr << "***FROM: " << localRay.srcObj() 
+                << " TO: " << i << std::endl;
+            std::cerr << "***Origin inside sphere? " << distance(localRay.origin(), sphere.center) << std::endl;
+            std::cerr << "Ray dir: " << localRay.direction() << std::endl;
+            std::cerr << "Sphere center: " << sphere.center << std::endl;
+            throw std::runtime_error("ORIGIN inside sphere");
+        } */
         if (currHit > eps && currHit < hitResult) {
             hitResult = currHit;
             sphereId = i;
@@ -502,12 +519,13 @@ Vector3 compute_pixel_color(Scene& scene, ray& localRay, unsigned int recDepth=M
         return compute_diffuse_color(scene, sphereId, localRay.at(hitResult));
     } else {
         // mirror refect and recursion
-        Vector3 hitPt = localRay.at(hitResult);
+        Vector3 hitPt = localRay.at(hitResult);      
         ray rayOut = mirror_ray(
             localRay,
             normalize(hitPt - sphere.center),   // normal
             hitPt
         );
+        rayOut.setSrc(sphereId); // DEBUG purpose; see ray.h      
         
         return currMaterial.color // color at current hitting pt
                 * compute_pixel_color(scene, rayOut, recDepth=recDepth-1);   // element-wise mutiply

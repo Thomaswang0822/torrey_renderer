@@ -585,9 +585,8 @@ namespace hw1
             {MaterialType::Mirror, Vector3{0.879, 0.247, 0.050}},
         }, 
         std::vector<PointLight>{
-            {Vector3{100, 100, 100}, Vector3{5, 5, 2}},
-            {Vector3{10, 10, 10}, Vector3{-5, 5, 1}},
-            {Vector3{2, 2, 2}, Vector3{0, 5, -5}}
+            // a strong point light "right under" origin
+            {Vector3{100, 100, 100}, Vector3{0, -3, 0}}
         }
     };
 

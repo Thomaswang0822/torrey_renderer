@@ -12,7 +12,7 @@ class ray {
     public:
         ray() {}
         ray(const Vector3& origin, const Vector3& direction)
-            : orig(origin), dir(direction)
+            : orig(origin), dir(normalize(direction))
         {}
         // 3rd Constructor: use orig and target point
         ray(const Vector3& origin, const Vector3& target, bool dummy)
@@ -23,12 +23,15 @@ class ray {
 
         Vector3 origin() const  { return orig; }
         Vector3 direction() const { return dir; }
+        int srcObj() const { return src; }
+        void setSrc(int id) {src = id; }
 
         Vector3 at(double t) const {
             return orig + t*dir;
         }
 
-    public:
+    private:
+        int src = -1;    // Debug: which sphere (surface) it originates from
         Vector3 orig;
         Vector3 dir;
 };
