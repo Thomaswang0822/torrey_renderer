@@ -652,3 +652,78 @@ Image3 hw_1_8(const std::vector<std::string> &params) {
 
     return img;
 }
+
+
+Image3 hw_1_11(const std::vector<std::string> &params) {
+    std::cout << "rendering with defocus blur" << std::endl;
+    if (params.size() == 0) {
+        return Image3(0, 0);
+    }
+
+    int scene_id = 0;
+    int spp = 64;
+    for (int i = 0; i < (int)params.size(); i++) {
+        if (params[i] == "-spp") {
+            spp = std::stoi(params[++i]);
+        } else {
+            scene_id = std::stoi(params[i]);
+        }
+    }
+    double inv_spp = 1.0 / spp;
+
+    UNUSED(scene_id); // avoid unused warning
+    UNUSED(spp); // avoid unused warning
+    Scene scene = hw1_scenes[scene_id];
+    // manually hard-code a blurCamera
+    blurCamera camera = blurCamera(
+        Vector3{0, 0, 0},  // lookfrom
+        Vector3{0, 0, -1}, // lookat
+        Vector3{0, 1, 0},  // up
+        45,                 // vfov
+        4.0 / 3.0,   // aspect_ratio
+        0.01,        // aperture; should be pretty small relative to obj size
+        1.0         // dist_to_focus
+    );
+
+    Image3 img(1280 /* width */, 960 /* height */);
+
+    // setup parallel
+    constexpr int tile_size = 16;
+    int num_tiles_x = (img.width + tile_size - 1) / tile_size;
+    int num_tiles_y = (img.height + tile_size - 1) / tile_size;
+    // almost 100% copy from https://github.com/BachiLi/lajolla_public/blob/b8ca4d02e2c7629db672d50a113c9dd04c54c906/src/render.cpp#L80
+    parallel_for([&](const Vector2i &tile){
+        // use scene.camera
+        ray localRay;
+        Real u, v;
+        // cannot directly store color now
+        Vector3 pixel_color;
+        // setup random geneator; give it unique stream_id
+        pcg32_state rng = init_pcg32(tile[1] * num_tiles_x + tile[0]);
+        // start and stop indices for each tile
+        int x0 = tile[0] * tile_size;
+        int x1 = std::min(x0 + tile_size, img.width);
+        int y0 = tile[1] * tile_size;
+        int y1 = std::min(y0 + tile_size, img.height);
+        for (int y = y0; y < y1; y++) {
+            for (int x = x0; x < x1; x++) {
+                // for each pixel, shoot may random rays thru
+                pixel_color = {0.0, 0.0, 0.0};
+                for (int s=0; s<spp; ++s) {    
+                    // shoot a ray
+                    u = Real(x + next_pcg32_real<double>(rng)) / (img.width - 1);
+                    v = Real(y + next_pcg32_real<double>(rng)) / (img.height - 1);
+                    localRay = camera.get_ray(u, v, rng);
+                    
+                    // CHANGE: call compute_pixel_color() which deal with hit & no-hit
+                    pixel_color += compute_pixel_color(scene, localRay);
+                }
+                // average and write color
+                img(x, img.height-1 - y) = pixel_color * inv_spp;
+            }
+        }
+
+    }, Vector2i(num_tiles_x, num_tiles_y));
+
+    return img;
+}

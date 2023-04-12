@@ -48,6 +48,9 @@ int main(int argc, char *argv[]) {
     } else if (hw_num == "1_8") {
         Image3 img = hw_1_8(parameters);
         imwrite("hw_1_8.exr", img);
+    } else if (hw_num == "1_11") {  // hw1 EC
+        Image3 img = hw_1_11(parameters);
+        imwrite("hw_1_11.exr", img);
     } else if (hw_num == "2_1") {
         Image3 img = hw_2_1(parameters);
         imwrite("hw_2_1.exr", img);

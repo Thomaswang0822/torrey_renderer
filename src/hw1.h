@@ -12,4 +12,6 @@ Image3 hw_1_6(const std::vector<std::string> &params);
 Image3 hw_1_7(const std::vector<std::string> &params);
 Image3 hw_1_8(const std::vector<std::string> &params);
 
+Image3 hw_1_11(const std::vector<std::string> &params);
+
 const unsigned int MAX_RECURSION = 5;

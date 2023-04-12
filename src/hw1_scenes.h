@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pcg.h"
+
 namespace hw1
 {
 
@@ -52,6 +54,61 @@ namespace hw1
             return ray(
                 origin,
                 lower_left_corner + offset_u * horizontal + offset_v * vertical - origin);
+        }
+    };
+
+    // Camera with more features to implement defocus blur
+    struct blurCamera : public Camera {
+        // additional varaibles
+        Vector3 u, v, w;
+        double lens_radius;
+
+        // overload constructor
+        blurCamera(
+            Vector3 lookfrom, Vector3 lookat, Vector3 vup, double vfov,  // old args
+            double aspect_ratio,    // no default
+            double aperture, double focus_dist   // new args
+        ) : Camera(lookfrom, lookat, vup, vfov, aspect_ratio=aspect_ratio)
+        {
+            auto theta = radians(vfov);
+            auto h = tan(theta / 2);
+            auto viewport_height = 2.0 * h;
+            auto viewport_width = aspect_ratio * viewport_height;
+
+            w = normalize(lookfrom - lookat);
+            u = normalize(cross(vup, w));
+            v = cross(w, u);
+
+            origin = lookfrom;
+            horizontal = focus_dist * viewport_width * u;
+            vertical = focus_dist * viewport_height * v;
+            lower_left_corner = origin - horizontal/2.0 - vertical/2.0 - focus_dist*w;
+
+            lens_radius = aperture / 2;
+        }
+
+        Vector3 random_in_unit_disk(pcg32_state &rng) {
+            // improve: there is a more robus way to generate 
+            // truly uniformly random point on a disk
+            // https://stackoverflow.com/a/50746409
+            double r = sqrt(next_pcg32_real<double>(rng));
+            double theta = next_pcg32_real<double>(rng) * c_TWOPI;
+
+            return Vector3(
+                r * cos(theta),
+                r * sin(theta),
+                0.0
+            );
+        }
+
+        ray get_ray(double s, double t, pcg32_state &rng) {
+            Vector3 rd = lens_radius * random_in_unit_disk(rng);
+            Vector3 offset = u * rd.x + v * rd.y;
+
+            return ray(
+                origin + offset,
+                lower_left_corner + s*horizontal + t*vertical - origin - offset
+            );
         }
     };
 
@@ -249,6 +306,7 @@ namespace hw1
             {Vector3{50, 5, 5}, Vector3{5, 5, -5}},
         }};
 
+    // Build my own scene
     Scene hw1_scene_5{
         Camera{
             Vector3{0, 0, 0},  // lookfrom
