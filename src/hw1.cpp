@@ -454,7 +454,8 @@ ray mirror_ray(ray& rayIn, Vector3 outNormal, Vector3& hitPt) {
         // This may happen very rarely when 2 spheres overlap and
         // the hitting point is close to the saddle point
         // FIX: out dir = in dir
-        std::cout << "Ray is inside a sphere; just penetrate thru" << std::endl;
+        
+        // std::cout << "Ray is inside a sphere; just penetrate thru" << std::endl;
         return ray(hitPt, rayIn.direction());
     }
     Vector3 outDir = normalize(rayIn.direction() - 2*dot(rayIn.direction(),outNormal)*outNormal);
@@ -649,6 +650,174 @@ Image3 hw_1_8(const std::vector<std::string> &params) {
         }
 
     }, Vector2i(num_tiles_x, num_tiles_y));
+
+    return img;
+}
+
+/**
+ * @brief Given required info, generate a refract ray
+ * 
+ * @note: this function works for both ray inside & outside sphere and
+ * does not distinguish them.
+ * 
+ * @param rayIn 
+ * @param outNormal 
+ * @param hitPt 
+ * @param eta_ratio: eta / eta_prime, which are refractive indices
+ * 
+ * @return ray 
+ */
+ray refract_ray(ray& rayIn, Vector3 outNormal, Vector3& hitPt, double eta_ratio) {
+    double cos_theta = dot(-rayIn.direction(), outNormal);
+    Vector3 r_out_perp = eta_ratio * (rayIn.direction() + cos_theta * outNormal);
+    Vector3 r_out_parallel = -sqrt(fabs(1.0 - length_squared(r_out_perp))) * outNormal;
+    return ray(
+        hitPt,
+        r_out_perp + r_out_parallel     // constructor will take care of normalize()
+    );
+}
+
+// Use Schlick's approximation for reflectance.
+double reflectance(double cosine, double eta_ratio) {
+    auto r0 = (1-eta_ratio) / (1+eta_ratio);
+    r0 = r0*r0;
+    return r0 + (1-r0)*pow((1 - cosine),5);
+}
+
+
+Vector3 compute_pixel_color2(Scene& scene, ray& localRay,
+    pcg32_state &rng, /* To do Schlick's approximation for reflectance check*/
+    unsigned int recDepth=MAX_RECURSION) {
+    // Step 1: detect hit
+    double hitResult = infinity<double>();
+    int sphereId = -1;
+    Sphere sphere;
+    double currHit;
+    const double eps = 1e-4;
+    for (unsigned int i=0; i<scene.shapes.size(); ++i) {
+        sphere = scene.shapes[i];
+        currHit = hit_sphere(sphere, localRay);
+        /* if (distance(localRay.origin(), sphere.center) < 0.5 - 1e-6) {
+            std::cout << "Create mirror ray at depth: " << recDepth << std::endl;
+            std::cerr << "Ray orig: " << localRay.origin() << std::endl;
+            std::cerr << "***FROM: " << localRay.srcObj() 
+                << " TO: " << i << std::endl;
+            std::cerr << "***Origin inside sphere? " << distance(localRay.origin(), sphere.center) << std::endl;
+            std::cerr << "Ray dir: " << localRay.direction() << std::endl;
+            std::cerr << "Sphere center: " << sphere.center << std::endl;
+            throw std::runtime_error("ORIGIN inside sphere");
+        } */
+        if (currHit > eps && currHit < hitResult) {
+            hitResult = currHit;
+            sphereId = i;
+        }   
+    }
+    if (sphereId == -1) {
+        // no hit
+        return Vector3(0.5, 0.5, 0.5);
+    }
+
+    // Step 2: found hit -> act according to diffuse or mirror OR glass
+    sphere = scene.shapes[sphereId];
+    Material currMaterial = scene.materials[sphere.material_id];
+    
+    if (currMaterial.type == MaterialType::Diffuse || recDepth == 0) {
+        // call helper function; defined before hw 1_5        
+        return compute_diffuse_color(scene, sphereId, localRay.at(hitResult));
+    } else {
+        Vector3 hitPt = localRay.at(hitResult);
+        Vector3 sphereNormal = normalize(hitPt - sphere.center);
+        // --Need to know if the ray will hit sphere from inside or outside
+        bool hitFromOutside = dot(localRay.direction(), sphereNormal) < 0.0;
+        // --such that we compute eta_ratio in advance
+        double eta_ratio = (hitFromOutside)? 
+            1.0 / RefractIndices[currMaterial.type] : RefractIndices[currMaterial.type];
+        // --to determine if refract is possible
+        double cos_theta = fmin(dot(-localRay.direction(), sphereNormal), 1.0);
+        double sin_theta = sqrt(1.0 - cos_theta*cos_theta);
+        bool cannot_refract = eta_ratio * sin_theta > 1.0;
+
+        if (currMaterial.type == MaterialType::Mirror || 
+            cannot_refract ||
+            reflectance(cos_theta, eta_ratio) > next_pcg32_real<double>(rng)) {
+            // mirror refect and recursion      
+            ray rayOut = mirror_ray(
+                localRay,
+                sphereNormal,
+                hitPt
+            );
+            rayOut.setSrc(sphereId); // DEBUG purpose; see ray.h      
+            
+            return currMaterial.color // color at current hitting pt
+                    * compute_pixel_color2(scene, rayOut, rng, recDepth=recDepth-1);   // element-wise mutiply
+        } else {    // refract-able material glass or diamond
+            // generate ray
+            ray rayOut = refract_ray(
+                localRay,
+                sphereNormal,
+                hitPt,
+                eta_ratio
+            );
+            rayOut.setSrc(sphereId); // DEBUG purpose; see ray.h
+            // we doing refraction, attenuation is {1.0, 1.0, 1.0}, i.e. no weakening
+            return compute_pixel_color2(scene, rayOut, rng, recDepth=recDepth-1);
+        }
+    }
+
+    return Vector3(0.0, 0.0, 0.0);  // all-black to indicate a bug
+}
+
+
+Image3 hw_1_10(const std::vector<std::string> &params) {
+    // Reuse code from 1.7: 
+    // parallelization may cause trouble when passing rng around
+    if (params.size() == 0) {
+        return Image3(0, 0);
+    }
+
+    int scene_id = 0;
+    int spp = 64;
+    for (int i = 0; i < (int)params.size(); i++) {
+        if (params[i] == "-spp") {
+            spp = std::stoi(params[++i]);
+        } else {
+            scene_id = std::stoi(params[i]);
+        }
+    }
+    double inv_spp = 1.0 / spp;
+
+    UNUSED(scene_id); // avoid unused warning
+    UNUSED(spp); // avoid unused warning
+    // Your scene is hw1_scenes[scene_id]
+    Scene scene = hw1_scenes[scene_id];
+
+    Image3 img(1280, 960);
+    // use scene.camera
+    ray localRay;
+    Real u, v;
+    // cannot directly store color now
+    Vector3 pixel_color;
+    // setup random geneator
+    pcg32_state rng = init_pcg32();
+    for (int y = 0; y < img.height; y++) {
+        for (int x = 0; x < img.width; x++) {
+            // for each pixel, shoot may random rays thru
+            pixel_color = {0.0, 0.0, 0.0};
+            for (int s=0; s<spp; ++s) {    
+                // shoot a ray
+                u = Real(x + next_pcg32_real<double>(rng)) / (img.width - 1);
+                v = Real(y + next_pcg32_real<double>(rng)) / (img.height - 1);
+                localRay = scene.camera.get_ray(u, v);
+                
+                // CHANGE: call compute_pixel_color2() which deal with 
+                // hit & no-hit
+                // (if hit): reflect or refract
+                pixel_color += compute_pixel_color2(scene, localRay, rng);
+            }
+            // average and write color
+            img(x, img.height-1 - y) = pixel_color * inv_spp;
+        }
+    }
 
     return img;
 }

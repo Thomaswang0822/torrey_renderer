@@ -8,7 +8,19 @@ namespace hw1
     enum class MaterialType
     {
         Diffuse,
-        Mirror
+        Mirror,
+        Glass,   // EC part
+        Diamond
+    };
+
+    std::unordered_map<MaterialType, double> RefractIndices = {
+        // place holders (will never be used) to enable precomputing eta_ratio;
+        // see compute_pixel_color2()
+        {MaterialType::Diffuse, 1.0},
+        {MaterialType::Mirror, 1.0},
+        // truly refract-able
+        {MaterialType::Glass, 1.5},
+        {MaterialType::Diamond, 2.4}
     };
 
     /**
@@ -648,8 +660,34 @@ namespace hw1
         }
     };
 
+    // duplicate scene_1 except for MaterialType
+    Scene hw1_scene_6{
+        Camera{
+            Vector3{0, 0, 0},  // lookfrom
+            Vector3{0, 0, -1}, // lookat
+            Vector3{0, 1, 0},  // up
+            45                 // vfov
+        },
+        std::vector<Sphere>{
+            {Vector3{0.0, -100.5, -3.0}, 100.0, 0},
+            {Vector3{0.0, 0.0, -3.0}, 0.5, 1},
+            {Vector3{1.0, 0.0, -3.0}, 0.5, 2},
+            {Vector3{-1.0, 0.0, -3.0}, 0.5, 3}},
+        std::vector<Material>{
+            {MaterialType::Diffuse, Vector3{0.80, 0.80, 0.20}},
+            {MaterialType::Mirror, Vector3{0.75, 0.25, 0.25}},
+            {MaterialType::Glass, Vector3{0.75, 0.25, 0.75}},
+            {MaterialType::Diamond, Vector3{0.25, 0.75, 0.75}},
+        },
+        std::vector<PointLight>{
+            {Vector3{100, 100, 100}, Vector3{5, 5, 2}},
+            {Vector3{10, 10, 10}, Vector3{-5, 5, 1}},
+            {Vector3{2, 2, 2}, Vector3{0, 5, -5}}}};
+
     Scene hw1_scenes[] = {
         hw1_scene_0, hw1_scene_1, hw1_scene_2, hw1_scene_3, hw1_scene_4,
-        hw1_scene_5};
+        hw1_scene_5, // my own scene
+        hw1_scene_6     // with refractor material
+    };
 
 }
