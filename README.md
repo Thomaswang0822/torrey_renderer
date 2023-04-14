@@ -1,43 +1,41 @@
-# torrey
-UCSD CSE 168 renderer
-https://cseweb.ucsd.edu/~tzli/cse168/
+# HW1 Submission
 
-# Build
-All the dependencies are included. Use CMake to build.
-```
-git clone https://github.com/BachiLi/torrey_public
-mkdir build
-cd build
-cmake ..
-```
-It requires compilers that support C++17 (gcc version >= 8, clang version >= 7, Apple Clang version >= 11.0, MSVC version >= 19.14).
+@author [Thomaswnag0822](https://github.com/Thomaswang0822)
 
-# Scenes
-You should also download the scenes we will use in later homeworks from the following Google drive link: 
-[https://drive.google.com/file/d/1SrGaw6AbyfhPs1NAuRjxSEQmf34DPKhm/view?usp=sharing](https://drive.google.com/file/d/1SrGaw6AbyfhPs1NAuRjxSEQmf34DPKhm/view?usp=sharing).
+## Design My Own Scene
 
-# Run
-Try 
-```
-cd build
-./torrey -hw 1_1
-```
-This will generate an image "hw1_1.exr".
+### Location
 
-To view the image, use [hdrview](https://github.com/wkjarosz/hdrview), or [tev](https://github.com/Tom94/tev).
+`Scene hw1_scene_5` inside hw1_scenes.h
 
-# Acknowledgement
-The renderer is heavily inspired by [pbrt](https://pbr-book.org/), [mitsuba](http://www.mitsuba-renderer.org/index_old.html), [the ray tracing series](https://raytracing.github.io/), and [darts](https://cs87-dartmouth.github.io/Fall2022/darts-overview.html).
+### Design
 
-We use [pugixml](https://pugixml.org/) to parse XML files.
+I use many small sphere objects to enclose a bigger hemispeherical space.
 
-We use [stb_image](https://github.com/nothings/stb) and [tinyexr](https://github.com/syoyo/tinyexr) for reading & writing images.
+The number of unit spheres is determined by the hemisphere radius such that they stick together.
 
-We use [miniz](https://github.com/richgel999/miniz) for compression & decompression.
+Each sphere has random material `Diffuse` or `Mirror`.
 
-We use [tinyply](https://github.com/ddiakopoulos/tinyply) for parsing PLY files.
+The Python script that generates the scene definition is adopted from Professor Li's script in the write-up.
 
-Many scenes in the scenes folder are downloaded from:
-- [http://www.mitsuba-renderer.org/download.html](http://www.mitsuba-renderer.org/download.html)
-- [https://benedikt-bitterli.me/resources/](https://benedikt-bitterli.me/resources/)
-- [https://casual-effects.com/data/](https://casual-effects.com/data/)
+### Rendering
+
+Reusing 1_8 code; image size 1280 x 960
+![my_scene.png](./img_png/my_scene.png)
+
+## Bonus: Glasses
+
+## Bonus: Defocus Blur
+
+### Design Idea & Explanation
+
+The overall design is almost identical to the guide in RTOW Chapter 12. I created a `blurCamera` extending `Camera` and add defocus-blur-related feature to it.
+
+One slight improvement I made is the sampling function from a disk. There is a more robust way to generate truly uniformly random point on a disk. For details, please see `Vector3 random_in_unit_disk()` and the reference there in the struct definition.
+
+The caller is a duplicate of 1_8 code. And it works for every scene.
+
+### Rendering
+
+Showing scene 1; 1280 x 960
+![my_scene.png](./img_png/defocus_blur.png)
