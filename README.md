@@ -25,6 +25,25 @@ Reusing 1_8 code; image size 1280 x 960
 
 ## Bonus: Glasses
 
+### Design Idea & Explanation
+
+The fundamental design difference between RTOW book and this assignment is that we don't use a Material class. Thus, I didn't define different `scatter()` function for differet materials. Instead, my core helper function is called compute_pixel_colors(), which will call smaller helper functions and do all calculation/checking/recursion, and finally compute the pixel color. For details, please look at the function definition, docstring, and inline comments.
+
+Material Glass and Diamond are both dielectrics and they only differ by refractive indices.
+
+I did some experiment on turning **Schlick Approximation** on/off. Both renderings are shown below.
+
+I reused and modified scene #1 and made it scene #6. In particular, 3 spheres have materials [Diamond, Mirror, Glass] respectively.
+
+The caller is a duplicate of 1_7 code.
+
+### Rendering
+
+Left: with **Schlick Approximation**; Right: without **Schlick Approximation**
+
+![my_scene.png](./img_png/refraction.png)
+![my_scene.png](./img_png/refraction_always.png)
+
 ## Bonus: Defocus Blur
 
 ### Design Idea & Explanation
