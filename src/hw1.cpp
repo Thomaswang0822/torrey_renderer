@@ -1,6 +1,5 @@
 #include "hw1.h"
 #include "hw1_scenes.h"
-#include "pcg.h"
 #include "parallel.h"
 
 using namespace hw1;
