@@ -43,7 +43,9 @@ Image3 hw_2_1(const std::vector<std::string> &params) {
         Vector3(0, 0,  0),  // lookfrom;
         Vector3(0, 0, -1),  // lookat
         Vector3(0, 1,  0),  // up
-        45.0   // vfov
+        45.0,   // vfov
+        img.width,
+        img.height
     };
 
     ray localRay;
@@ -123,7 +125,9 @@ Image3 hw_2_2(const std::vector<std::string> &params) {
         Vector3(0, 0,  0),  // lookfrom;
         Vector3(0, 0, -1),  // lookat
         Vector3(0, 1,  0),  // up
-        45.0   // vfov
+        45.0,   // vfov
+        img.width,
+        img.height
     };
 
     ray localRay;
