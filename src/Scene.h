@@ -89,8 +89,11 @@ struct Triangle {
     {
         // get indices
         Vector3i id3 = mesh->indices[face_index];
-        // call naive constructor
-        Triangle(mesh->positions[id3[0]], mesh->positions[id3[1]], mesh->positions[id3[2]]);
+        // "repeat" naive constructor
+        p0 = mesh->positions[id3[0]];
+        p1 = mesh->positions[id3[1]];
+        p2 = mesh->positions[id3[2]];
+        e1 = p1 - p0;  e2 = p2 - p0;
         // write normals
         n0 = mesh->normals[id3[0]];
         n1 = mesh->normals[id3[0]];

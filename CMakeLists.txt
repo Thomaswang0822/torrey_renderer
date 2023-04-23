@@ -50,6 +50,7 @@ set(SRCS src/3rdparty/miniz.h
          src/compute_normals.cpp
          src/hw1.cpp
          src/hw2.cpp
+         src/hw2_helper.cpp
          src/hw3.cpp
          src/hw4.cpp
          src/image.cpp
