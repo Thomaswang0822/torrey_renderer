@@ -64,5 +64,12 @@ void checkRaySceneHit(ray localRay,
                       Real& hitDist,
                       Shape*& hitObj);
 
+// Create an AABB and return it
+AABB bounding_box(Shape curr_shape);
 
+// Used ONLY in hw_2_4
+// hit box => (1,1,1), no hit => (0.5, 0.5, 0.5)
+Vector3 bbox_color(std::vector<AABB> bboxes, ray& localRay);
+
+// overarching caller
 Vector3 compute_pixel_color(Scene& scene, ray& localRay, unsigned int recDepth=MAX_DEPTH);

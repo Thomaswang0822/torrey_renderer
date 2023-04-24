@@ -54,6 +54,34 @@ struct Camera
 };
 
 // Geometric property
+
+/**
+ * @brief Axis-aligned bounding box. Copied from RTNW, Listing 8
+ * 
+ */
+struct AABB {
+    Vector3 minimum;
+    Vector3 maximum;
+
+    AABB(const Vector3& a, const Vector3& b) : 
+        minimum(a), maximum(b) {};
+
+    bool hit(const ray& r, double t_min, double t_max) const {
+        // for each xyz axis
+        for (int a = 0; a < 3; a++) {
+            auto invD = 1.0f / r.direction()[a];
+            auto t0 = (minimum[a] - r.origin()[a]) * invD;
+            auto t1 = (maximum[a] - r.origin()[a]) * invD;
+            if (invD < 0.0f)
+                std::swap(t0, t1);
+            t_min = t0 > t_min ? t0 : t_min;
+            t_max = t1 < t_max ? t1 : t_max;
+            if (t_max < t_min)
+                return false;
+        }
+        return true;
+    }
+};
 struct ShapeBase {
     int material_id = -1;
     int area_light_id = -1;
@@ -71,7 +99,7 @@ struct TriangleMesh : public ShapeBase {
     std::vector<Vector2> uvs;
 };
 
-struct Triangle {
+struct Triangle : public ShapeBase{
     Vector3 p0, p1, p2;  // vertices position
     Vector3 n0, n1, n2;
     Vector3 normal;  // may need triangle normal
@@ -84,6 +112,7 @@ struct Triangle {
         p0(pos0), p1(pos1), p2(pos2),
         e1(pos1 - pos0), e2(pos2 - pos0) {}
 
+    // ordinary constructor; used whem creating a Scene
     Triangle(int face_index, TriangleMesh* mesh, int mesh_index) :
         face_id(face_index), mesh_id(mesh_index)
     {
@@ -99,6 +128,8 @@ struct Triangle {
         n1 = mesh->normals[id3[0]];
         n2 = mesh->normals[id3[0]];
         normal = normalize(cross(e1, e2));
+        // material id
+        material_id = mesh->material_id;
         // FUTURE: deal with uvs
     }
 };
@@ -107,6 +138,7 @@ using Shape = std::variant<Sphere, Triangle>;
 
 // Material property defined in material.h
 
+// Light property
 struct PointLight {
     Vector3 position;
     Vector3 intensity;
@@ -119,6 +151,7 @@ struct DiffuseAreaLight {
 
 using Light = std::variant<PointLight, DiffuseAreaLight>;
 
+// A scene encapsulating everything above
 struct Scene {
     Scene(const ParsedScene &scene);
 

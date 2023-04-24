@@ -30,8 +30,11 @@ Scene::Scene(const ParsedScene &scene) :
         } else if (auto *parsed_mesh = std::get_if<ParsedTriangleMesh>(&parsed_shape)) {
             meshes[tri_mesh_count] = TriangleMesh{
                 {parsed_mesh->material_id, parsed_mesh->area_light_id},
-                parsed_mesh->positions, parsed_mesh->indices,
-                parsed_mesh->normals, parsed_mesh->uvs};
+                parsed_mesh->positions, 
+                parsed_mesh->indices,
+                parsed_mesh->normals, 
+                parsed_mesh->uvs
+            };
             // Extract all the individual triangles
             for (int face_index = 0; face_index < (int)parsed_mesh->indices.size(); face_index++) {
                 shapes.push_back(Triangle{face_index, &meshes[tri_mesh_count], tri_mesh_count});

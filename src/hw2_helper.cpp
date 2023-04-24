@@ -160,6 +160,41 @@ void checkRaySceneHit(ray localRay,
     }
 }
 
+
+AABB bounding_box(Shape curr_shape) {
+    if (Sphere *sph = std::get_if<Sphere>(&curr_shape)) {
+        return AABB(
+            sph->position - Vector3(sph->radius, sph->radius, sph->radius),
+            sph->position + Vector3(sph->radius, sph->radius, sph->radius)
+        );
+    } else if (Triangle *tri = std::get_if<Triangle>(&curr_shape)) {
+        Vector3 minPt(
+            min(min(tri->p0.x, tri->p1.x), tri->p2.x),
+            min(min(tri->p0.y, tri->p1.y), tri->p2.y),
+            min(min(tri->p0.z, tri->p1.z), tri->p2.z)
+        );
+        Vector3 maxPt(
+            max(max(tri->p0.x, tri->p1.x), tri->p2.x),
+            max(max(tri->p0.y, tri->p1.y), tri->p2.y),
+            max(max(tri->p0.z, tri->p1.z), tri->p2.z)
+        );
+        return AABB(minPt, maxPt);
+    } else {
+        assert(false);
+    }
+}
+
+
+Vector3 bbox_color(std::vector<AABB> bboxes, ray& localRay) {
+    for (AABB bbox : bboxes) {
+        if (bbox.hit(localRay, 0.0, infinity<double>())) {
+            return Vector3(1.0, 1.0, 1.0);
+        }
+    }
+    return Vector3(0.5, 0.5, 0.5);
+}
+
+
 Vector3 compute_pixel_color(Scene& scene, ray& localRay, unsigned int recDepth)
 {
     // Step 1: detect hit
@@ -184,8 +219,7 @@ Vector3 compute_pixel_color(Scene& scene, ray& localRay, unsigned int recDepth)
         hitNormal = normalize(hitPt - hitSph->position);
     } else if (Triangle* hitTri = std::get_if<Triangle>(hitObj)) {
         // get material
-        TriangleMesh* triMesh = &scene.meshes[hitTri->mesh_id];
-        currMaterial = scene.materials[triMesh->material_id];
+        currMaterial = scene.materials[hitTri->material_id];
         // get normal of a triangle
         hitNormal = hitTri->normal;
         // std::cout << "Hit a Triangle" << std::endl;
