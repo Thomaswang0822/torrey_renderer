@@ -23,7 +23,7 @@ Scene::Scene(const ParsedScene &scene) :
         if (auto *sph = std::get_if<ParsedSphere>(&parsed_shape)) {
             shapes.push_back(
                 Sphere{
-                    {sph->material_id, sph->area_light_id},
+                    sph->material_id, sph->area_light_id,
                     sph->position, sph->radius
                 }
             );
@@ -66,4 +66,68 @@ Scene::Scene(const ParsedScene &scene) :
         // why is it swapped?
         lights.push_back(PointLight{point_light.position, point_light.intensity});
     }
+}
+
+// AABB-related helper functions
+AABB bounding_box(Shape curr_shape) {
+    if (Sphere *sph = std::get_if<Sphere>(&curr_shape)) {
+        // Vector3 - Real has been overloaded
+        return AABB(
+            sph->position - sph->radius,
+            sph->position + sph->radius
+        );
+    } else if (Triangle *tri = std::get_if<Triangle>(&curr_shape)) {
+        Vector3 minPt(
+            std::min(std::min(tri->p0.x, tri->p1.x), tri->p2.x),
+            std::min(std::min(tri->p0.y, tri->p1.y), tri->p2.y),
+            std::min(std::min(tri->p0.z, tri->p1.z), tri->p2.z)
+        );
+        Vector3 maxPt(
+            std::max(std::max(tri->p0.x, tri->p1.x), tri->p2.x),
+            std::max(std::max(tri->p0.y, tri->p1.y), tri->p2.y),
+            std::max(std::max(tri->p0.z, tri->p1.z), tri->p2.z)
+        );
+        return AABB(minPt, maxPt);
+    } else {
+        assert(false);
+    }
+}
+
+
+AABB& get_bbox(Shape& curr_shape) {
+    if (Sphere *sph = std::get_if<Sphere>(&curr_shape)) {
+        // Vector3 - Real has been overloaded
+        return sph->box;
+    } else if (Triangle *tri = std::get_if<Triangle>(&curr_shape)) {
+        return tri->box;
+    } else {
+        assert(false);
+    }
+}
+
+
+AABB surrounding_box(AABB box0, AABB box1) {
+    Vector3 small(
+        fmin(box0.minimum.x, box1.minimum.x),
+        fmin(box0.minimum.y, box1.minimum.y),
+        fmin(box0.minimum.z, box1.minimum.z)
+    );
+
+    Vector3 big(
+        fmax(box0.maximum.x, box1.maximum.x),
+        fmax(box0.maximum.y, box1.maximum.y),
+        fmax(box0.maximum.z, box1.maximum.z)
+    );
+
+    return AABB(small, big);
+}
+
+
+Vector3 bbox_color(std::vector<AABB> bboxes, ray& localRay) {
+    for (AABB bbox : bboxes) {
+        if (bbox.hit(localRay, 0.0, infinity<double>())) {
+            return Vector3(1.0, 1.0, 1.0);
+        }
+    }
+    return Vector3(0.5, 0.5, 0.5);
 }
