@@ -140,7 +140,7 @@ void checkRayTriHit(ray localRay,
 
 
 void checkRayShapeHit(ray localRay,
-                    Shape curr_shape,
+                    Shape& curr_shape,
                     Real& hitDist,
                     Shape*& hitObj)
 {
@@ -178,7 +178,7 @@ Vector3 computePixelColor(Scene& scene, ray& localRay, unsigned int recDepth)
     if (hitDist > 1e9) {  // no hit
         return scene.background_color;
     }
-    std::cout << hitDist << '\t' << bool(hitObj == nullptr) << std::endl;
+    // std::cout << hitDist << '\t' << bool(hitObj == nullptr) << std::endl;
     assert(hitObj && "Bug: hitObj is a nullptr even when a hit is detected.");
 
     // Step 2: found hit -> get Material of hitObj

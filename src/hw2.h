@@ -63,7 +63,7 @@ void checkRayTriHit(ray localRay,
                     Shape*& hitObj);
 
 void checkRayShapeHit(ray localRay,
-                    Shape curr_shape,
+                    Shape& curr_shape,
                     Real& hitDist,
                     Shape*& hitObj);
 
