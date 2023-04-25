@@ -86,12 +86,12 @@ struct AABB {
 struct ShapeBase {
     int material_id = -1;
     int area_light_id = -1;
-    AABB box;   // has default constructor
 };
 
 struct Sphere : public ShapeBase {
     Vector3 position;
     Real radius;
+    AABB box;   // has default constructor
 
     Sphere(int mat_id, int light_id, Vector3 pos, Real r) :
         ShapeBase{mat_id, light_id},
@@ -117,6 +117,7 @@ struct Triangle : public ShapeBase{
     Vector3 e1, e2;  // p1-p0, p2-p0; not normalized
     int face_id = -1;
     int mesh_id = -1;   // in order to retrieve material and light id
+    AABB box;   // has default constructor
 
     // naive constructor; used in hw_2_1 and hw_2_2
     Triangle(Vector3 pos0, Vector3 pos1, Vector3 pos2) :
@@ -136,8 +137,8 @@ struct Triangle : public ShapeBase{
         e1 = p1 - p0;  e2 = p2 - p0;
         // write normals
         n0 = mesh->normals[id3[0]];
-        n1 = mesh->normals[id3[0]];
-        n2 = mesh->normals[id3[0]];
+        n1 = mesh->normals[id3[1]];
+        n2 = mesh->normals[id3[2]];
         normal = normalize(cross(e1, e2));
         // material id
         material_id = mesh->material_id;
