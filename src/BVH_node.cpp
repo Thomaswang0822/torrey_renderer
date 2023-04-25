@@ -4,7 +4,7 @@
 
 
 BVH_node::BVH_node(Shape& obj) {
-    leafObj = &obj;
+    leafObj = make_shared<Shape>(obj);
     box = get_bbox(obj);
 }
 
@@ -106,11 +106,9 @@ bool BVH_node::hit(const ray& r, Real t_min, Real t_max,
     // std::cout << "Not always miss top-level box \n";
     // leaf node
     if (leafObj) {
-        // std::cout << "checkRayShapeHit called \n";
         checkRayShapeHit(r, *leafObj, hitDist, hitObj);
-        // std::cout << hitDist << std::endl;
-        // return or false? Return value here shouldn't matter
-        return leafObj == hitObj;
+        // return leafObj.get() == hitObj;
+        return bool(t_min <= hitDist && hitDist <= t_max);
     }
 
     // non-leaf node: recursion

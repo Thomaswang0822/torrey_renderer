@@ -12,7 +12,7 @@ struct BVH_node {
     // member variables
     shared_ptr<BVH_node> left, right;
     AABB box;
-    Shape* leafObj;  // nullptr if non-leaf node
+    shared_ptr<Shape> leafObj;  // nullptr if non-leaf node
 
     // leaf constructor
     BVH_node(Shape& obj);
