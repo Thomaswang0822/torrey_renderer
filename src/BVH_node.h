@@ -21,7 +21,12 @@ struct BVH_node {
         size_t start, size_t end,  // index
         pcg32_state &rng, bool randomAxis=true  // to pick random axis
     );
-
+    /***DEBUG NOTE
+     * Instead of a vector<Shape>&, we need to pass in a vector<shared_ptr<Shape>>&
+     * This is because a reference to a vector itself doesn't give reference to
+     * element (our Shape).
+     * Thus, we need to use a vector of pointers.
+     */
 
     // member functions
     bool hit(const ray& r, Real t_min, Real t_max,
