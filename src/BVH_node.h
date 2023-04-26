@@ -15,9 +15,9 @@ struct BVH_node {
     shared_ptr<Shape> leafObj;  // nullptr if non-leaf node
 
     // leaf constructor
-    BVH_node(Shape& obj);
+    BVH_node(shared_ptr<Shape> obj);
     // top-level recursive constructor
-    BVH_node(const vector<Shape>& src_objects,
+    BVH_node(const vector<shared_ptr<Shape>>& src_objects,
         size_t start, size_t end,  // index
         pcg32_state &rng, bool randomAxis=true  // to pick random axis
     );
@@ -42,26 +42,26 @@ inline int random_int(int min, int max, pcg32_state &rng) {
 }
 
 // Comparator that works on bbox of primitives (Shape)
-inline bool box_compare(Shape& a, Shape& b, int axis) {
-    assert(0 <= axis && axis <= 2);
+inline bool box_compare(const shared_ptr<Shape> a, const shared_ptr<Shape> b, int axis) {
+    // assert(0 <= axis && axis <= 2);
 
     return get_bbox(a).minimum[axis] < get_bbox(b).minimum[axis];
 }
 
-inline bool box_x_compare (Shape& a, Shape& b) {
+inline bool box_x_compare (const shared_ptr<Shape> a, const shared_ptr<Shape> b) {
     return box_compare(a, b, 0);
 }
 
-inline bool box_y_compare (Shape& a, Shape& b) {
+inline bool box_y_compare (const shared_ptr<Shape> a, const shared_ptr<Shape> b) {
     return box_compare(a, b, 1);
 }
 
-inline bool box_z_compare (Shape& a, Shape& b) {
+inline bool box_z_compare (const shared_ptr<Shape> a, const shared_ptr<Shape> b) {
     return box_compare(a, b, 2);
 }
 
 // Helper for picking axis with largest range
-Vector3 axisRange(const vector<Shape>& src_objects, size_t start, size_t end);
+Vector3 axisRange(const vector<shared_ptr<Shape>>& src_objects, size_t start, size_t end);
 
 inline int maxRangeIndex(Vector3 rangeXYZ) {
     int max_index = 0;

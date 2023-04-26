@@ -42,3 +42,6 @@ __pycache__/
 
 # Everything in the scene folder
 scenes/
+
+# my own debug logs
+logs/

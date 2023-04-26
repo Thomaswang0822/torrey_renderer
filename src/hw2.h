@@ -5,6 +5,7 @@
 #include "Scene.h"
 #include "pcg.h"
 #include "BVH_node.h"
+#include "progressreporter.h"
 
 #include <filesystem>
 #include <variant>

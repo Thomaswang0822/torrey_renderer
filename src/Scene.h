@@ -197,7 +197,7 @@ AABB bounding_box(Shape curr_shape);
 
 // Starting from hw_2_5, an AABB will be attached to a Shape during creation. 
 // Returns a reference to the box.
-AABB& get_bbox(Shape& curr_shape);
+AABB& get_bbox(std::shared_ptr<Shape> curr_shape);
 
 // Create an AABB that encloses the given 2 smaller AABBs
 AABB surrounding_box(AABB box0, AABB box1);

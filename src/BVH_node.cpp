@@ -1,15 +1,16 @@
 #include "BVH_node.h"
+#include "timer.h"
 
 #include <algorithm>
 
 
-BVH_node::BVH_node(Shape& obj) {
-    leafObj = make_shared<Shape>(obj);
+BVH_node::BVH_node(shared_ptr<Shape> obj) {
+    leafObj = obj;
     box = get_bbox(obj);
 }
 
 
-BVH_node::BVH_node(const vector<Shape>& src_objects,
+BVH_node::BVH_node(const std::vector<std::shared_ptr<Shape>>& src_objects,
         size_t start, size_t end, pcg32_state &rng, bool randomAxis)
 {
     // Create a modifiable array of the source scene objects
@@ -44,11 +45,29 @@ BVH_node::BVH_node(const vector<Shape>& src_objects,
             right = make_shared<BVH_node>(objects[start]);
         }
     } else {
+        Timer timer;
+        tick(timer);
         std::sort(objects.begin() + start, objects.begin() + end, comparator);
+        if (object_span >= 10000){
+            std::cout << "Sort from " << start << " to " << end << 
+                "\n\t took " << tick(timer) << " seconds." << std::endl;
+        }
 
         auto mid = start + object_span/2;
         left = make_shared<BVH_node>(objects, start, mid, rng, randomAxis);
+        if (object_span >= 10000){
+            std::cout << "Recursion left from " << start << " to " << end << 
+                "\n\t took another " << tick(timer) << " seconds." << std::endl;
+        }
         right = make_shared<BVH_node>(objects, mid, end, rng, randomAxis);
+        if (object_span >= 10000){
+            std::cout << "Recursion right from " << start << " to " << end << 
+                "\n\t took another " << tick(timer) << " seconds." << std::endl;
+        }
+        /* if (object_span >= 10000){
+            std::cout << "Recursion left and right from " << start << " to " << end << 
+                "\n\t took another " << tick(timer) << " seconds." << std::endl;
+        } */
     }
 
     AABB box_left, box_right;
@@ -62,13 +81,14 @@ BVH_node::BVH_node(const vector<Shape>& src_objects,
 }
 
 
-Vector3 axisRange(const vector<Shape>& src_objects, size_t start, size_t end) {
+Vector3 axisRange(const vector<shared_ptr<Shape>>& src_objects, size_t start, size_t end) {
     Vector3 resMin(infinity<Real>(), infinity<Real>(), infinity<Real>());
     Vector3 resMax(-resMin);
 
     Shape* shapePtr = nullptr;
     Vector3 currMin, currMax;
     for (size_t i=start; i<end; ++i) {
+        shapePtr = src_objects[i].get();
         if (Sphere *sph = std::get_if<Sphere>(shapePtr)) {
             // Vector3 - Real has been overloaded
             currMin = sph->box.minimum;
