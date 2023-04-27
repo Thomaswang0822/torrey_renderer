@@ -311,12 +311,6 @@ Image3 hw_2_5(const std::vector<std::string> &params) {
     std::cout << "ParsedScene Copied to myScene. Took " << 
             tick(timer) << " seconds." << std::endl;
 
-    /* // REMOVE:
-    std::cout << "Length of shapes: " << myScene.shapes.size() << std::endl;
-    for (Vector3 pos : myScene.meshes[1].positions) {
-        std::cout << pos << std::endl;
-    }  */
-
     // construct BVH tree
     pcg32_state rng_BVH = init_pcg32();
     // DEBUG NOTE: see BVH_node.h

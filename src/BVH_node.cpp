@@ -13,7 +13,7 @@ BVH_node::BVH_node(shared_ptr<Shape> obj) {
 BVH_node::BVH_node(std::vector<std::shared_ptr<Shape>>& objects,
         size_t start, size_t end, pcg32_state &rng, bool randomAxis)
 {
-    Timer timer;
+    // Timer timer;
     // SHOULD NOT: Create a modifiable array of the source scene objects
     // auto objects = src_objects;
 
@@ -46,14 +46,8 @@ BVH_node::BVH_node(std::vector<std::shared_ptr<Shape>>& objects,
             right = make_shared<BVH_node>(objects[start]);
         }
     } else {
-        
-        tick(timer);
         std::sort(objects.begin() + start, objects.begin() + end, comparator);
-        if (object_span >= 10000){
-            std::cout << "Sort from " << start << " to " << end << 
-                "\n\t took " << tick(timer) << " seconds." << std::endl;
-        }
-
+        // tick(timer);
         auto mid = start + object_span/2;
         left = make_shared<BVH_node>(objects, start, mid, rng, randomAxis);
         right = make_shared<BVH_node>(objects, mid, end, rng, randomAxis);
