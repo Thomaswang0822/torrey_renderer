@@ -47,6 +47,7 @@ set(SRCS src/3rdparty/miniz.h
          src/pcg.h
          src/Scene.h
          src/material.h
+         src/BVH_node.h
          src/compute_normals.cpp
          src/hw1.cpp
          src/hw2.cpp
@@ -62,7 +63,8 @@ set(SRCS src/3rdparty/miniz.h
          src/parse_serialized.cpp
          src/print_scene.cpp
          src/transform.cpp
-         src/Scene.cpp)
+         src/Scene.cpp
+         src/BVH_node.cpp)
 
 add_library(torrey_lib STATIC ${SRCS})
 add_executable(torrey src/main.cpp)

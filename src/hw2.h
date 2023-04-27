@@ -4,6 +4,8 @@
 #include "ray.h"
 #include "Scene.h"
 #include "pcg.h"
+#include "BVH_node.h"
+#include "progressreporter.h"
 
 #include <filesystem>
 #include <variant>
@@ -17,6 +19,8 @@ Image3 hw_2_5(const std::vector<std::string> &params);
 
 const unsigned int MAX_DEPTH = 10;    // defined in hw1.h
 const Real EPSILON = 1e-7;
+
+struct BVH_node;
 
 
 bool RayIntersectsTriangle(ray localRay, 
@@ -59,17 +63,23 @@ void checkRayTriHit(ray localRay,
                     Real& hitDist,
                     Shape*& hitObj);
 
+void checkRayShapeHit(ray localRay,
+                    Shape& curr_shape,
+                    Real& hitDist,
+                    Shape*& hitObj);
+
 void checkRaySceneHit(ray localRay,
                       Scene& scene,
                       Real& hitDist,
                       Shape*& hitObj);
 
-// Create an AABB and return it
-AABB bounding_box(Shape curr_shape);
+// overarching callers
+Vector3 computePixelColor(Scene& scene, ray& localRay, unsigned int recDepth=MAX_DEPTH);
 
-// Used ONLY in hw_2_4
-// hit box => (1,1,1), no hit => (0.5, 0.5, 0.5)
-Vector3 bbox_color(std::vector<AABB> bboxes, ray& localRay);
+/* ### BVH-version ### */
 
-// overarching caller
-Vector3 compute_pixel_color(Scene& scene, ray& localRay, unsigned int recDepth=MAX_DEPTH);
+// BVH_RaySceneHit() is actually BVH_node::hit
+bool BVH_isVisible(Vector3& shadingPt, Vector3& lightPos, Scene& scene, BVH_node root);
+Vector3 BVH_DiffuseColor(Scene& scene, Vector3 normal, 
+                    Vector3 shadingPt, Diffuse* diffuseMat, BVH_node root);
+Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node root, unsigned int recDepth=MAX_DEPTH);

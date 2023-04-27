@@ -38,12 +38,8 @@ class ray {
 
 inline ray mirror_ray(ray& rayIn, Vector3 outNormal, Vector3& hitPt) {
     if (dot(rayIn.direction(), outNormal) > 0.0) {
-        // This may happen very rarely when 2 spheres overlap and
-        // the hitting point is close to the saddle point
-        // FIX: out dir = in dir
         
-        // std::cout << "Ray is inside a sphere; just penetrate thru" << std::endl;
-        return ray(hitPt, rayIn.direction());
+        return mirror_ray(rayIn, -outNormal, hitPt);
     }
     Vector3 outDir = normalize(rayIn.direction() - 2*dot(rayIn.direction(),outNormal)*outNormal);
     if (dot(outDir, outNormal) < 0.0) {

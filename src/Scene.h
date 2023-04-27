@@ -54,7 +54,6 @@ struct Camera
 };
 
 // Geometric property
-
 /**
  * @brief Axis-aligned bounding box. Copied from RTNW, Listing 8
  * 
@@ -63,6 +62,7 @@ struct AABB {
     Vector3 minimum;
     Vector3 maximum;
 
+    AABB() {};
     AABB(const Vector3& a, const Vector3& b) : 
         minimum(a), maximum(b) {};
 
@@ -82,6 +82,7 @@ struct AABB {
         return true;
     }
 };
+
 struct ShapeBase {
     int material_id = -1;
     int area_light_id = -1;
@@ -90,6 +91,16 @@ struct ShapeBase {
 struct Sphere : public ShapeBase {
     Vector3 position;
     Real radius;
+    AABB box;   // has default constructor
+
+    Sphere(int mat_id, int light_id, Vector3 pos, Real r) :
+        ShapeBase{mat_id, light_id},
+        position(pos), radius(r)
+    {
+        // create bbox during instantiation
+        // Vector3 - Real has been overloaded
+        box = AABB(pos-r, pos+r);
+    };
 };
 
 struct TriangleMesh : public ShapeBase {
@@ -106,6 +117,7 @@ struct Triangle : public ShapeBase{
     Vector3 e1, e2;  // p1-p0, p2-p0; not normalized
     int face_id = -1;
     int mesh_id = -1;   // in order to retrieve material and light id
+    AABB box;   // has default constructor
 
     // naive constructor; used in hw_2_1 and hw_2_2
     Triangle(Vector3 pos0, Vector3 pos1, Vector3 pos2) :
@@ -125,11 +137,23 @@ struct Triangle : public ShapeBase{
         e1 = p1 - p0;  e2 = p2 - p0;
         // write normals
         n0 = mesh->normals[id3[0]];
-        n1 = mesh->normals[id3[0]];
-        n2 = mesh->normals[id3[0]];
+        n1 = mesh->normals[id3[1]];
+        n2 = mesh->normals[id3[2]];
         normal = normalize(cross(e1, e2));
         // material id
         material_id = mesh->material_id;
+        // create bbox during instantiation
+        Vector3 minPt(
+            std::min(std::min(p0.x, p1.x), p2.x),
+            std::min(std::min(p0.y, p1.y), p2.y),
+            std::min(std::min(p0.z, p1.z), p2.z)
+        );
+        Vector3 maxPt(
+            std::max(std::max(p0.x, p1.x), p2.x),
+            std::max(std::max(p0.y, p1.y), p2.y),
+            std::max(std::max(p0.z, p1.z), p2.z)
+        );
+        box = AABB(minPt, maxPt);
         // FUTURE: deal with uvs
     }
 };
@@ -168,4 +192,16 @@ struct Scene {
 };
 
 
+// Create an AABB of a primative; used in hw_2_4
+AABB bounding_box(Shape curr_shape);
 
+// Starting from hw_2_5, an AABB will be attached to a Shape during creation. 
+// Returns a reference to the box.
+AABB& get_bbox(std::shared_ptr<Shape> curr_shape);
+
+// Create an AABB that encloses the given 2 smaller AABBs
+AABB surrounding_box(AABB box0, AABB box1);
+
+// Used ONLY in hw_2_4
+// hit box => (1,1,1), no hit => (0.5, 0.5, 0.5)
+Vector3 bbox_color(std::vector<AABB> bboxes, ray& localRay);

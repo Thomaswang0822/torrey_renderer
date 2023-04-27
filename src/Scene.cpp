@@ -1,5 +1,7 @@
 #include "Scene.h"
 
+using namespace std;
+
 // constructor
 Scene::Scene(const ParsedScene &scene) :
         camera(scene.camera),
@@ -10,7 +12,7 @@ Scene::Scene(const ParsedScene &scene) :
     // Extract triangle meshes from the parsed scene.
     int tri_mesh_count = 0;
     for (const ParsedShape &parsed_shape : scene.shapes) {
-        if (std::get_if<ParsedTriangleMesh>(&parsed_shape)) {
+        if (get_if<ParsedTriangleMesh>(&parsed_shape)) {
             tri_mesh_count++;
         }
     }
@@ -20,14 +22,14 @@ Scene::Scene(const ParsedScene &scene) :
     tri_mesh_count = 0;
     for (int i = 0; i < (int)scene.shapes.size(); i++) {
         const ParsedShape &parsed_shape = scene.shapes[i];
-        if (auto *sph = std::get_if<ParsedSphere>(&parsed_shape)) {
+        if (auto *sph = get_if<ParsedSphere>(&parsed_shape)) {
             shapes.push_back(
                 Sphere{
-                    {sph->material_id, sph->area_light_id},
+                    sph->material_id, sph->area_light_id,
                     sph->position, sph->radius
                 }
             );
-        } else if (auto *parsed_mesh = std::get_if<ParsedTriangleMesh>(&parsed_shape)) {
+        } else if (auto *parsed_mesh = get_if<ParsedTriangleMesh>(&parsed_shape)) {
             meshes[tri_mesh_count] = TriangleMesh{
                 {parsed_mesh->material_id, parsed_mesh->area_light_id},
                 parsed_mesh->positions, 
@@ -47,12 +49,12 @@ Scene::Scene(const ParsedScene &scene) :
 
     // Copy the materials
     for (const ParsedMaterial &parsed_mat : scene.materials) {
-        if (auto *diffuse = std::get_if<ParsedDiffuse>(&parsed_mat)) {
+        if (auto *diffuse = get_if<ParsedDiffuse>(&parsed_mat)) {
             // We assume the reflectance is always RGB for now.
-            materials.push_back(Diffuse{std::get<Vector3>(diffuse->reflectance)});
-        } else if (auto *mirror = std::get_if<ParsedMirror>(&parsed_mat)) {
+            materials.push_back(Diffuse{get<Vector3>(diffuse->reflectance)});
+        } else if (auto *mirror = get_if<ParsedMirror>(&parsed_mat)) {
             // We assume the reflectance is always RGB for now.
-            materials.push_back(Mirror{std::get<Vector3>(mirror->reflectance)});
+            materials.push_back(Mirror{get<Vector3>(mirror->reflectance)});
         } else {
             assert(false);
         }
@@ -61,9 +63,73 @@ Scene::Scene(const ParsedScene &scene) :
     // Copy the lights
     for (const ParsedLight &parsed_light : scene.lights) {
         // We assume all lights are point lights for now.
-        ParsedPointLight point_light = std::get<ParsedPointLight>(parsed_light);
+        ParsedPointLight point_light = get<ParsedPointLight>(parsed_light);
         // lights.push_back(PointLight{point_light.intensity, point_light.position});
         // why is it swapped?
         lights.push_back(PointLight{point_light.position, point_light.intensity});
     }
+}
+
+// AABB-related helper functions
+AABB bounding_box(Shape curr_shape) {
+    if (Sphere *sph = get_if<Sphere>(&curr_shape)) {
+        // Vector3 - Real has been overloaded
+        return AABB(
+            sph->position - sph->radius,
+            sph->position + sph->radius
+        );
+    } else if (Triangle *tri = get_if<Triangle>(&curr_shape)) {
+        Vector3 minPt(
+            std::min(std::min(tri->p0.x, tri->p1.x), tri->p2.x),
+            std::min(std::min(tri->p0.y, tri->p1.y), tri->p2.y),
+            std::min(std::min(tri->p0.z, tri->p1.z), tri->p2.z)
+        );
+        Vector3 maxPt(
+            std::max(std::max(tri->p0.x, tri->p1.x), tri->p2.x),
+            std::max(std::max(tri->p0.y, tri->p1.y), tri->p2.y),
+            std::max(std::max(tri->p0.z, tri->p1.z), tri->p2.z)
+        );
+        return AABB(minPt, maxPt);
+    } else {
+        assert(false);
+    }
+}
+
+
+AABB& get_bbox(shared_ptr<Shape> curr_shape) {
+    if (Sphere *sph = get_if<Sphere>(curr_shape.get())) {
+        // Vector3 - Real has been overloaded
+        return sph->box;
+    } else if (Triangle *tri = get_if<Triangle>(curr_shape.get())) {
+        return tri->box;
+    } else {
+        assert(false);
+    }
+}
+
+
+AABB surrounding_box(AABB box0, AABB box1) {
+    Vector3 small(
+        fmin(box0.minimum.x, box1.minimum.x),
+        fmin(box0.minimum.y, box1.minimum.y),
+        fmin(box0.minimum.z, box1.minimum.z)
+    );
+
+    Vector3 big(
+        fmax(box0.maximum.x, box1.maximum.x),
+        fmax(box0.maximum.y, box1.maximum.y),
+        fmax(box0.maximum.z, box1.maximum.z)
+    );
+
+    return AABB(small, big);
+}
+
+
+Vector3 bbox_color(vector<AABB> bboxes, ray& localRay) {
+    for (AABB bbox : bboxes) {
+        if (bbox.hit(localRay, 0.0, infinity<double>())) {
+            return Vector3(1.0, 1.0, 1.0);
+        }
+    }
+    return Vector3(0.5, 0.5, 0.5);
 }
