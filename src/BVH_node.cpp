@@ -10,11 +10,12 @@ BVH_node::BVH_node(shared_ptr<Shape> obj) {
 }
 
 
-BVH_node::BVH_node(const std::vector<std::shared_ptr<Shape>>& src_objects,
+BVH_node::BVH_node(std::vector<std::shared_ptr<Shape>>& objects,
         size_t start, size_t end, pcg32_state &rng, bool randomAxis)
 {
-    // Create a modifiable array of the source scene objects
-    auto objects = src_objects;
+    Timer timer;
+    // SHOULD NOT: Create a modifiable array of the source scene objects
+    // auto objects = src_objects;
 
     int axis;
     Vector3 rangeXYZ;
@@ -22,7 +23,7 @@ BVH_node::BVH_node(const std::vector<std::shared_ptr<Shape>>& src_objects,
         axis = random_int(0,2, rng);
     } else {
         // Quiz: try picking axis with largest range
-        rangeXYZ = axisRange(src_objects, start, end);
+        rangeXYZ = axisRange(objects, start, end);
         axis = maxRangeIndex(rangeXYZ);
     }
 
@@ -45,7 +46,7 @@ BVH_node::BVH_node(const std::vector<std::shared_ptr<Shape>>& src_objects,
             right = make_shared<BVH_node>(objects[start]);
         }
     } else {
-        Timer timer;
+        
         tick(timer);
         std::sort(objects.begin() + start, objects.begin() + end, comparator);
         if (object_span >= 10000){
@@ -55,29 +56,22 @@ BVH_node::BVH_node(const std::vector<std::shared_ptr<Shape>>& src_objects,
 
         auto mid = start + object_span/2;
         left = make_shared<BVH_node>(objects, start, mid, rng, randomAxis);
-        if (object_span >= 10000){
-            std::cout << "Recursion left from " << start << " to " << end << 
-                "\n\t took another " << tick(timer) << " seconds." << std::endl;
-        }
         right = make_shared<BVH_node>(objects, mid, end, rng, randomAxis);
-        if (object_span >= 10000){
-            std::cout << "Recursion right from " << start << " to " << end << 
-                "\n\t took another " << tick(timer) << " seconds." << std::endl;
-        }
         /* if (object_span >= 10000){
             std::cout << "Recursion left and right from " << start << " to " << end << 
                 "\n\t took another " << tick(timer) << " seconds." << std::endl;
         } */
     }
 
-    AABB box_left, box_right;
+    /* AABB box_left, box_right;
 
     if (  !left->write_bounding_box (box_left)
        || !right->write_bounding_box(box_right)
     )
         std::cerr << "No bounding box in bvh_node constructor.\n";
 
-    box = surrounding_box(box_left, box_right);
+    box = surrounding_box(box_left, box_right); */
+    box = surrounding_box(left.get()->box, right.get()->box);
 }
 
 

@@ -17,7 +17,7 @@ struct BVH_node {
     // leaf constructor
     BVH_node(shared_ptr<Shape> obj);
     // top-level recursive constructor
-    BVH_node(const vector<shared_ptr<Shape>>& src_objects,
+    BVH_node(vector<shared_ptr<Shape>>& objects,
         size_t start, size_t end,  // index
         pcg32_state &rng, bool randomAxis=true  // to pick random axis
     );

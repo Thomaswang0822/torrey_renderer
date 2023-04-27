@@ -191,6 +191,7 @@ Image3 hw_2_3(const std::vector<std::string> &params) {
     constexpr int tile_size = 16;
     int num_tiles_x = (img.width + tile_size - 1) / tile_size;
     int num_tiles_y = (img.height + tile_size - 1) / tile_size;
+    ProgressReporter reporter(num_tiles_x * num_tiles_y);
     // almost 100% copy from https://github.com/BachiLi/lajolla_public/blob/b8ca4d02e2c7629db672d50a113c9dd04c54c906/src/render.cpp#L80
     parallel_for([&](const Vector2i &tile){
         // use scene.camera
@@ -222,8 +223,9 @@ Image3 hw_2_3(const std::vector<std::string> &params) {
                 img(x, img.height-1 - y) = pixel_color * inv_spp;
             }
         }
-
+        reporter.update(1);
     }, Vector2i(num_tiles_x, num_tiles_y));
+    reporter.done();
     // END: rewrite hw_1_8() code
     return img;
 }
@@ -256,6 +258,7 @@ Image3 hw_2_4(const std::vector<std::string> &params) {
     constexpr int tile_size = 16;
     int num_tiles_x = (img.width + tile_size - 1) / tile_size;
     int num_tiles_y = (img.height + tile_size - 1) / tile_size;
+    
     // almost 100% copy from https://github.com/BachiLi/lajolla_public/blob/b8ca4d02e2c7629db672d50a113c9dd04c54c906/src/render.cpp#L80
     parallel_for([&](const Vector2i &tile){
         // use scene.camera
@@ -302,10 +305,17 @@ Image3 hw_2_5(const std::vector<std::string> &params) {
     tick(timer);
     ParsedScene scene = parse_scene(params[0]);
     std::cout << "Scene parsing done. Took " << tick(timer) << " seconds." << std::endl;
+    std::cout << scene << std::endl;
 
     Scene myScene(scene);
     std::cout << "ParsedScene Copied to myScene. Took " << 
             tick(timer) << " seconds." << std::endl;
+
+    /* // REMOVE:
+    std::cout << "Length of shapes: " << myScene.shapes.size() << std::endl;
+    for (Vector3 pos : myScene.meshes[1].positions) {
+        std::cout << pos << std::endl;
+    }  */
 
     // construct BVH tree
     pcg32_state rng_BVH = init_pcg32();

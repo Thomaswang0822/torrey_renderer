@@ -368,7 +368,15 @@ Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node root, unsigned int 
         currMaterial = scene.materials[hitTri->material_id];
         // get normal of a triangle
         hitNormal = hitTri->normal;
-        // std::cout << "Hit a Triangle" << std::endl;
+
+        /* // REMOVE: 
+        if (hitTri->material_id == 1) {
+            // mirror
+            cout << "Hit the mirror triangle" << endl;
+            cout << "position: " << hitTri->p0 << hitTri->p1 << hitTri->p2 << endl;
+            cout << "normal: " << hitTri->n0 << hitTri->n1 << hitTri->n2 << endl;
+            cout << "Triangle normal: " << hitTri->normal << endl;
+        } */
         
     } else {
         assert(false && "hitObj is neither Sphere or Triangle. Should NEVER happen.");
