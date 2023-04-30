@@ -320,7 +320,7 @@ Image3 hw_2_5(const std::vector<std::string> &params) {
         std::shared_ptr<Shape> shape_ptr = std::make_shared<Shape>(shapes[i]);
         shape_ptrs.push_back(shape_ptr);
     }
-    BVH_node root(shape_ptrs, 0, myScene.shapes.size(), rng_BVH, true);
+    BVH_node root(shape_ptrs, 0, myScene.shapes.size(), rng_BVH, false);
     std::cout << "BVH tree built. Took " << 
             tick(timer) << " seconds." << std::endl;
     
@@ -370,5 +370,6 @@ Image3 hw_2_5(const std::vector<std::string> &params) {
     }, Vector2i(num_tiles_x, num_tiles_y));
     reporter.done();
     // END: rewrite hw_1_8() code
+    std::cout << "Parallel Raytracing takes: " << tick(timer) << " seconds.\n ";
     return img;
 }
