@@ -11,18 +11,19 @@
 class ray {
     public:
         ray() {}
-        ray(const Vector3& origin, const Vector3& direction)
-            : orig(origin), dir(normalize(direction))
+        ray(const Vector3& origin, const Vector3& direction, double time=0.0)
+            : orig(origin), dir(normalize(direction)), tm(time)
         {}
         // 3rd Constructor: use orig and target point
-        ray(const Vector3& origin, const Vector3& target, bool dummy)
-            : orig(origin)
+        ray(const Vector3& origin, const Vector3& target, bool dummy, double time=0.0)
+            : orig(origin), tm(time)
         {
             this->dir = normalize(target - origin);
         }
 
         Vector3 origin() const  { return orig; }
         Vector3 direction() const { return dir; }
+        double time() const {return tm; }
         int srcObj() const { return src; }
         void setSrc(int id) {src = id; }
 
@@ -34,6 +35,7 @@ class ray {
         int src = -1;    // Debug: which sphere (surface) it originates from
         Vector3 orig;
         Vector3 dir;
+        double tm;
 };
 
 inline ray mirror_ray(ray& rayIn, Vector3 outNormal, Vector3& hitPt) {
