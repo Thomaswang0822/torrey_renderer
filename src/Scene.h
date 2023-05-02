@@ -81,6 +81,22 @@ struct AABB {
         }
         return true;
     }
+
+    Real surfaceA() {
+        Vector3 diff = maximum - minimum;
+        return 2 * (diff.x * diff.y + diff.x * diff.z + diff.y * diff.z);
+    }
+
+    AABB merge(AABB& neighbor) {
+        Vector3 newMin = min(minimum, neighbor.minimum);
+        Vector3 newMax = max(maximum, neighbor.maximum);
+
+        return AABB(newMin, newMax);
+    }
+
+    Vector3 center() {
+        return 0.5 * (minimum + maximum);
+    }
 };
 
 struct ShapeBase {

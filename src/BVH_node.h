@@ -16,6 +16,14 @@ struct BVH_node {
 
     // leaf constructor
     BVH_node(shared_ptr<Shape> obj);
+    // quick merge constructor
+    BVH_node(shared_ptr<BVH_node> leftBVH, shared_ptr<BVH_node> rightBVH) :
+    left(leftBVH), right(rightBVH)
+    {
+        box = surrounding_box(left.get()->box, right.get()->box);
+    }
+    // wrapper around constructor below: force BVH for each mesh
+    BVH_node(vector<shared_ptr<Shape>>& objects, Scene& scene, pcg32_state &rng);
     // top-level recursive constructor
     BVH_node(vector<shared_ptr<Shape>>& objects,
         size_t start, size_t end,  // index
@@ -35,6 +43,11 @@ struct BVH_node {
     bool write_bounding_box(AABB& output_box) const {
         output_box = box;
         return true;
+    }
+
+    bool leftBoxCloser(Vector3 origin) {
+        return distance_squared(left.get()->box.center(), origin) < 
+                distance_squared(right.get()->box.center(), origin);
     }
     
 };
@@ -79,3 +92,20 @@ inline int maxRangeIndex(Vector3 rangeXYZ) {
     }
     return max_index;
 }
+
+/**
+ * @brief Given related information, determine the split index by SAH
+ * 
+ * @param objects 
+ * @param start 
+ * @param end 
+ * @param axis: which axis to use.
+ * @return size_t the optimal index (start <= mid < end) of split
+ */
+size_t SAH_split(std::vector<std::shared_ptr<Shape>>& objects,
+        size_t start, size_t end, int axis);
+
+// We create this function because it's potentially
+// faster than merging AABB one by one
+AABB rangeAABB(std::vector<std::shared_ptr<Shape>>& objects,
+        size_t start, size_t end);

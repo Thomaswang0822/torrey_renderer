@@ -305,7 +305,7 @@ Image3 hw_2_5(const std::vector<std::string> &params) {
     tick(timer);
     ParsedScene scene = parse_scene(params[0]);
     std::cout << "Scene parsing done. Took " << tick(timer) << " seconds." << std::endl;
-    std::cout << scene << std::endl;
+    // std::cout << scene << std::endl;
 
     Scene myScene(scene);
     std::cout << "ParsedScene Copied to myScene. Took " << 
@@ -320,7 +320,9 @@ Image3 hw_2_5(const std::vector<std::string> &params) {
         std::shared_ptr<Shape> shape_ptr = std::make_shared<Shape>(shapes[i]);
         shape_ptrs.push_back(shape_ptr);
     }
-    BVH_node root(shape_ptrs, 0, myScene.shapes.size(), rng_BVH, false);
+    // manually construct BVH for each mesh
+    BVH_node root(shape_ptrs, myScene, rng_BVH);
+    // BVH_node root(shape_ptrs, 0, myScene.shapes.size(), rng_BVH, false);
     std::cout << "BVH tree built. Took " << 
             tick(timer) << " seconds." << std::endl;
     
