@@ -21,7 +21,7 @@ The Python script that generates the scene definition is adopted from Professor 
 ### Rendering
 
 Reusing 1_8 code; image size 1280 x 960
-![my_scene.png](./img_png/my_scene.png)
+![my_scene.png](./img_png/hw1/my_scene.png)
 
 ## Bonus: Glasses
 
@@ -41,8 +41,8 @@ The caller is a duplicate of 1_7 code.
 
 Left: with **Schlick Approximation**; Right: without **Schlick Approximation**
 
-![my_scene.png](./img_png/refraction.png)
-![my_scene.png](./img_png/refraction_always.png)
+![my_scene.png](./img_png/hw1/refraction.png)
+![my_scene.png](./img_png/hw1/refraction_always.png)
 
 ## Bonus: Defocus Blur
 
@@ -57,4 +57,4 @@ The caller is a duplicate of 1_8 code. And it works for every scene.
 ### Rendering
 
 Showing scene 1; 1280 x 960
-![my_scene.png](./img_png/defocus_blur.png)
+![my_scene.png](./img_png/hw1/defocus_blur.png)
