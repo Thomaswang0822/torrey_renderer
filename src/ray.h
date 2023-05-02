@@ -49,7 +49,8 @@ inline ray mirror_ray(ray& rayIn, Vector3 outNormal, Vector3& hitPt) {
     }
     return ray(
         hitPt,      // origin
-        outDir  // reflected dir
+        outDir,  // reflected dir
+        rayIn.time()
     );
 }
 

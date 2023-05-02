@@ -64,6 +64,11 @@ struct Camera
             random_time()
         );
     }
+
+    void set_time(double t0, double t1) {
+        time0 = t0;
+        time1 = t1;
+    }
 };
 
 // Geometric property
@@ -145,6 +150,14 @@ struct Sphere : public ShapeBase {
         // Vector3 - Real has been overloaded
         box = AABB(pos-r, pos+r);
     };
+
+    void set_time(double t0, double t1) {
+        time0 = t0;
+        time1 = t1;
+    }
+    void set_delta(Vector3 delta_p) {
+        delta_pos = delta_p;
+    }
 };
 
 struct TriangleMesh : public ShapeBase {
@@ -206,6 +219,14 @@ struct Triangle : public ShapeBase{
     Vector3 get_p2(double t) {
         return p2 + (t - time0) * delta_pos / (time1 - time0);
     }
+
+    void set_time(double t0, double t1) {
+        time0 = t0;
+        time1 = t1;
+    }
+    void set_delta(Vector3 delta_p) {
+        delta_pos = delta_p;
+    }
 };
 
 using Shape = std::variant<Sphere, Triangle>;
@@ -239,6 +260,10 @@ struct Scene {
     int samples_per_pixel;
     // For the Triangle in the shapes to reference to.
     std::vector<TriangleMesh> meshes;
+
+
+    // @MOTIONBLUR
+    void add_motion_blur(Vector3 delta_p, double t0, double t1);
 };
 
 

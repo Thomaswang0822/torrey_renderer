@@ -311,6 +311,12 @@ Image3 hw_2_5(const std::vector<std::string> &params) {
     std::cout << "ParsedScene Copied to myScene. Took " << 
             tick(timer) << " seconds." << std::endl;
 
+    
+    // add MOTIONBLUR: time0, time1, delta_pos to primatives
+    double TIME0 = 0.0; double TIME1 = 1.0;
+    Vector3 DELTA_POS = {0.0, 5.0, 0.0};
+    myScene.add_motion_blur(DELTA_POS, TIME0, TIME1);
+
     // construct BVH tree
     pcg32_state rng_BVH = init_pcg32();
     // DEBUG NOTE: see BVH_node.h

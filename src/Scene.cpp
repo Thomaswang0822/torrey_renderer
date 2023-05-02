@@ -119,3 +119,22 @@ Vector3 bbox_color(vector<AABB> bboxes, ray& localRay) {
     }
     return Vector3(0.5, 0.5, 0.5);
 }
+
+
+// @MOTIONBLUR
+void Scene::add_motion_blur(Vector3 delta_p, double t0, double t1) {
+    // modify camera
+    camera.set_time(t0, t1);
+    // modify all primatives: Tri or Sphere
+    for (Shape& currShap : shapes) {
+        if (Sphere *sph = std::get_if<Sphere>(&currShap)) {
+            sph->set_time(t0, t1);
+            sph->set_delta(delta_p);
+        } else if (Triangle *tri = std::get_if<Triangle>(&currShap)) {
+            tri->set_time(t0, t1);
+            tri->set_delta(delta_p);
+        } else {
+            assert(false);
+        }
+    }
+}
