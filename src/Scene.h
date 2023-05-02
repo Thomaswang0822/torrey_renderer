@@ -5,6 +5,7 @@
 #include "ray.h"
 #include "parse_scene.h"
 #include "material.h"
+#include "pcg.h"
 
 struct Camera
 {
@@ -14,6 +15,8 @@ struct Camera
     Real vfov;
     Vector3 horizontal, vertical;
     Vector3 lower_left_corner;
+    double time0, time1;  // shutter open/close times
+    pcg32_state rng_cam;  // to send ray at random time
 
     Camera(
         Vector3 lookfrom,
@@ -21,10 +24,14 @@ struct Camera
         Vector3 vup,
         double vfov, // vertical field-of-view in degrees
         int width,
-        int height  // w and h of image
-    ) : origin(lookfrom), lookat(lookat), up(vup), vfov(vfov)
-                                            // origin(lookfrom)
+        int height,  // w and h of image
+        double _time0 = 0.0,
+        double _time1 = 0.0
+    ) : origin(lookfrom), lookat(lookat), up(vup), vfov(vfov),
+        time0(_time0), time1(_time1)
     {
+        rng_cam = init_pcg32();
+
         Real aspect_ratio = Real(width) / height;
         auto theta = radians(vfov);
         auto h = tan(theta / 2);
@@ -45,11 +52,17 @@ struct Camera
         Camera(pCam.lookfrom, pCam.lookat, pCam.up, pCam.vfov, pCam.width, pCam.height)
     {};
 
-    ray get_ray(double offset_u, double offset_v) const
+    inline double random_time() {
+        return time0 + (time1 - time0) * next_pcg32_real<double>(rng_cam);
+    }
+
+    ray get_ray(double offset_u, double offset_v)
     {
         return ray(
             origin,
-            lower_left_corner + offset_u * horizontal + offset_v * vertical - origin);
+            lower_left_corner + offset_u * horizontal + offset_v * vertical - origin,
+            random_time()
+        );
     }
 };
 
