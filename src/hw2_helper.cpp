@@ -49,13 +49,14 @@ Vector3 computeDiffuseColor(Scene& scene, Vector3 normal,
     return result;
 }
 
-
+// @MOTIONBLUR
 void checkRaySphereHit(ray localRay,
                        Sphere* sph,
                        Real& hitDist,
                        Shape*& hitObj) 
 {
-    Vector3 oc = localRay.origin() - sph->position;
+    // Vector3 oc = localRay.origin() - sph->position;
+    Vector3 oc = localRay.origin() - sph->center(localRay.time());
     // a,b,c refer to those in at^2 + bt + c = 0
     auto a = length_squared(localRay.direction());
     auto half_b = dot(oc, localRay.direction());
@@ -92,7 +93,7 @@ void checkRaySphereHit(ray localRay,
     }
 }
 
-
+// @MOTIONBLUR
 void checkRayTriHit(ray localRay,
                     Triangle* tri,
                     Real& hitDist,
@@ -107,7 +108,7 @@ void checkRayTriHit(ray localRay,
         return;    // This ray is parallel to this triangle.
     }
     f = 1.0 / a;
-    s = localRay.origin() - tri->p0;
+    s = localRay.origin() - tri->get_p0(localRay.time());
     u = f * dot(s, h);
 
     if (u < 0.0 || u > 1.0) {
@@ -169,6 +170,7 @@ void checkRaySceneHit(ray localRay,
 }
 
 
+// @MOTIONBLUR
 Vector3 computePixelColor(Scene& scene, ray& localRay, unsigned int recDepth)
 {
     // Step 1: detect hit
@@ -190,7 +192,7 @@ Vector3 computePixelColor(Scene& scene, ray& localRay, unsigned int recDepth)
         // get material
         currMaterial = scene.materials[hitSph->material_id];
         // get normal of a sphere
-        hitNormal = normalize(hitPt - hitSph->position);
+        hitNormal = normalize(hitPt - hitSph->center(localRay.time()));
     } else if (Triangle* hitTri = std::get_if<Triangle>(hitObj)) {
         // get material
         currMaterial = scene.materials[hitTri->material_id];
@@ -341,6 +343,7 @@ Vector3 BVH_DiffuseColor(Scene& scene, Vector3 normal,
 }
 
 
+// @MOTIONBLUR
 Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node root, unsigned int recDepth) {
     // Step 1 BVH UPDATE: detect hit. 
     Real hitDist = infinity<Real>();  // use to determine the closest hit
@@ -362,7 +365,7 @@ Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node root, unsigned int 
         // get material
         currMaterial = scene.materials[hitSph->material_id];
         // get normal of a sphere
-        hitNormal = normalize(hitPt - hitSph->position);
+        hitNormal = normalize(hitPt - hitSph->center(localRay.time()));
     } else if (Triangle* hitTri = std::get_if<Triangle>(hitObj)) {
         // get material
         currMaterial = scene.materials[hitTri->material_id];

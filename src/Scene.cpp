@@ -71,25 +71,20 @@ Scene::Scene(const ParsedScene &scene) :
 }
 
 // AABB-related helper functions
+// @MOTIONBLUR
 AABB bounding_box(Shape curr_shape) {
     if (Sphere *sph = get_if<Sphere>(&curr_shape)) {
         // Vector3 - Real has been overloaded
         return AABB(
             sph->position - sph->radius,
-            sph->position + sph->radius
+            sph->position + sph->radius,
+            sph->delta_pos  // change in position over time0 to time1
         );
     } else if (Triangle *tri = get_if<Triangle>(&curr_shape)) {
-        Vector3 minPt(
-            std::min(std::min(tri->p0.x, tri->p1.x), tri->p2.x),
-            std::min(std::min(tri->p0.y, tri->p1.y), tri->p2.y),
-            std::min(std::min(tri->p0.z, tri->p1.z), tri->p2.z)
-        );
-        Vector3 maxPt(
-            std::max(std::max(tri->p0.x, tri->p1.x), tri->p2.x),
-            std::max(std::max(tri->p0.y, tri->p1.y), tri->p2.y),
-            std::max(std::max(tri->p0.z, tri->p1.z), tri->p2.z)
-        );
-        return AABB(minPt, maxPt);
+        // these 2 are static position at time0
+        Vector3 minPt = min(tri->p0, min(tri->p1, tri->p2));
+        Vector3 maxPt = max(tri->p0, max(tri->p1, tri->p2));
+        return AABB(minPt, maxPt, tri->delta_pos);
     } else {
         assert(false);
     }
@@ -109,17 +104,8 @@ AABB& get_bbox(shared_ptr<Shape> curr_shape) {
 
 
 AABB surrounding_box(AABB box0, AABB box1) {
-    Vector3 small(
-        fmin(box0.minimum.x, box1.minimum.x),
-        fmin(box0.minimum.y, box1.minimum.y),
-        fmin(box0.minimum.z, box1.minimum.z)
-    );
-
-    Vector3 big(
-        fmax(box0.maximum.x, box1.maximum.x),
-        fmax(box0.maximum.y, box1.maximum.y),
-        fmax(box0.maximum.z, box1.maximum.z)
-    );
+    Vector3 small = min(box0.minimum, box1.minimum) ;
+    Vector3 big= max(box0.maximum, box1.maximum);
 
     return AABB(small, big);
 }

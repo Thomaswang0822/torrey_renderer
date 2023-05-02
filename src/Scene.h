@@ -71,13 +71,20 @@ struct Camera
  * @brief Axis-aligned bounding box. Copied from RTNW, Listing 8
  * 
  */
+// @MOTIONBLUR
 struct AABB {
     Vector3 minimum;
     Vector3 maximum;
+    // we will just make the AABB larger but still static
+    // (no time) involved to reduce complexity
+    Vector3 delta;
 
     AABB() {};
-    AABB(const Vector3& a, const Vector3& b) : 
-        minimum(a), maximum(b) {};
+    AABB(const Vector3& a, const Vector3& b, Vector3 d = {0.0, 0.0, 0.0})
+    {
+        minimum = min(a, min(a-d, a+d));
+        maximum = max(b, max(b-d, b+d));
+    };
 
     bool hit(const ray& r, double t_min, double t_max) const {
         // for each xyz axis
@@ -117,14 +124,22 @@ struct ShapeBase {
     int area_light_id = -1;
 };
 
+// @MOTIONBLUR
 struct Sphere : public ShapeBase {
     Vector3 position;
     Real radius;
+    Vector3 delta_pos;  // change in center, i.e. center1 - center0
+    double time0, time1;
     AABB box;   // has default constructor
 
-    Sphere(int mat_id, int light_id, Vector3 pos, Real r) :
+    Vector3 center(double t) const {
+        return position + (t - time0) *delta_pos / (time1 - time0);
+    } 
+
+    Sphere(int mat_id, int light_id, Vector3 pos, Real r, Vector3 delta_c={0.0, 0.0, 0.0}) :
         ShapeBase{mat_id, light_id},
-        position(pos), radius(r)
+        position(pos), radius(r),
+        delta_pos(delta_c)
     {
         // create bbox during instantiation
         // Vector3 - Real has been overloaded
@@ -139,6 +154,7 @@ struct TriangleMesh : public ShapeBase {
     std::vector<Vector2> uvs;
 };
 
+// @MOTIONBLUR: positions will change, but normals will not
 struct Triangle : public ShapeBase{
     Vector3 p0, p1, p2;  // vertices position
     Vector3 n0, n1, n2;
@@ -146,6 +162,8 @@ struct Triangle : public ShapeBase{
     Vector3 e1, e2;  // p1-p0, p2-p0; not normalized
     int face_id = -1;
     int mesh_id = -1;   // in order to retrieve material and light id
+    double time0, time1;
+    Vector3 delta_pos;
     AABB box;   // has default constructor
 
     // naive constructor; used in hw_2_1 and hw_2_2
@@ -153,9 +171,10 @@ struct Triangle : public ShapeBase{
         p0(pos0), p1(pos1), p2(pos2),
         e1(pos1 - pos0), e2(pos2 - pos0) {}
 
-    // ordinary constructor; used whem creating a Scene
-    Triangle(int face_index, TriangleMesh* mesh, int mesh_index) :
-        face_id(face_index), mesh_id(mesh_index)
+    // ordinary constructor; used when creating a Scene
+    Triangle(int face_index, TriangleMesh* mesh, int mesh_index, 
+            Vector3 delta_p = {0.0, 0.0, 0.0}) :
+        face_id(face_index), mesh_id(mesh_index), delta_pos(delta_p)
     {
         // get indices
         Vector3i id3 = mesh->indices[face_index];
@@ -172,18 +191,20 @@ struct Triangle : public ShapeBase{
         // material id
         material_id = mesh->material_id;
         // create bbox during instantiation
-        Vector3 minPt(
-            std::min(std::min(p0.x, p1.x), p2.x),
-            std::min(std::min(p0.y, p1.y), p2.y),
-            std::min(std::min(p0.z, p1.z), p2.z)
-        );
-        Vector3 maxPt(
-            std::max(std::max(p0.x, p1.x), p2.x),
-            std::max(std::max(p0.y, p1.y), p2.y),
-            std::max(std::max(p0.z, p1.z), p2.z)
-        );
-        box = AABB(minPt, maxPt);
+        Vector3 minPt = min(p0, min(p1, p2));
+        Vector3 maxPt = max(p0, max(p1, p2));
+        box = AABB(minPt, maxPt, delta_p);
         // FUTURE: deal with uvs
+    }
+
+    Vector3 get_p0(double t) {
+        return p0 + (t - time0) * delta_pos / (time1 - time0);
+    }
+    Vector3 get_p1(double t) {
+        return p1 + (t - time0) * delta_pos / (time1 - time0);
+    }
+    Vector3 get_p2(double t) {
+        return p2 + (t - time0) * delta_pos / (time1 - time0);
     }
 };
 
