@@ -151,7 +151,7 @@ Vector3 axisRange(const vector<shared_ptr<Shape>>& src_objects, size_t start, si
 
 
 bool BVH_node::hit(const ray& r, Real t_min, Real t_max,
-            const Scene& scene, Real& hitDist, Shape*& hitObj)
+            const Scene& scene, Hit_Record& rec, Shape*& hitObj)
 {
     // complete miss
     if (!box.hit(r, t_min, t_max)) {
@@ -161,24 +161,24 @@ bool BVH_node::hit(const ray& r, Real t_min, Real t_max,
     // std::cout << "Not always miss top-level box \n";
     // leaf node
     if (leafObj) {
-        checkRayShapeHit(r, *leafObj, hitDist, hitObj);
+        checkRayShapeHit(r, *leafObj, rec, hitObj);
         // return leafObj.get() == hitObj;
-        return bool(t_min <= hitDist && hitDist <= t_max);
+        return bool(t_min <= rec.dist && rec.dist <= t_max);
     }
 
     // non-leaf node: recursion
     bool hit_left, hit_right;
     if ( leftBoxCloser(r.origin()) ) {
-        hit_left = left->hit(r, t_min, t_max, scene, hitDist, hitObj);
+        hit_left = left->hit(r, t_min, t_max, scene, rec, hitObj);
         hit_right = right->hit(r, t_min, 
-            hit_left ? hitDist : t_max,  // spatial short-circuiting
-            scene, hitDist, hitObj
+            hit_left ? rec.dist : t_max,  // spatial short-circuiting
+            scene, rec, hitObj
         );
     } else {
-        hit_right = right->hit(r, t_min, t_max, scene, hitDist, hitObj);
+        hit_right = right->hit(r, t_min, t_max, scene, rec, hitObj);
         hit_left = left->hit(r, t_min, 
-            hit_right ? hitDist : t_max,  // spatial short-circuiting
-            scene, hitDist, hitObj
+            hit_right ? rec.dist : t_max,  // spatial short-circuiting
+            scene, rec, hitObj
         );
     }
     
@@ -275,12 +275,11 @@ bool BVH_isVisible(Vector3& shadingPt, Vector3& lightPos, Scene& scene, BVH_node
     double d = distance(shadingPt, lightPos);
     // shot ray from light to shadingPt
     ray lightRay(lightPos, shadingPt, true);
-    // test hitting point
-    // Baseline version: traverse all shapes and test
-    Real hitDist = infinity<Real>();  // use to determine the closest hit
+    // test hitting point with BVH
+    Hit_Record rec;
     Shape* hitObj = nullptr;
     // hit => not visible (shadow)
-    return !root.hit(lightRay, EPSILON, (1-EPSILON) * d, scene, hitDist, hitObj);
+    return !root.hit(lightRay, EPSILON, (1-EPSILON) * d, scene, rec, hitObj);
 }
 
 // the only change is calling BVH_isVisible()
@@ -320,31 +319,25 @@ Vector3 BVH_DiffuseColor(Scene& scene, Vector3 normal,
 
 Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node root, unsigned int recDepth) {
     // Step 1 BVH UPDATE: detect hit. 
-    Real hitDist = infinity<Real>();  // use to determine the closest hit
+    Hit_Record rec;
     Shape* hitObj = nullptr;
-    // checkRaySceneHit(localRay, scene, hitDist, hitObj);
-    root.hit(localRay, EPSILON, infinity<Real>(), scene, hitDist, hitObj);
-    if (hitDist > 1e9) {  // no hit
+    root.hit(localRay, EPSILON, infinity<Real>(), scene, rec, hitObj);
+    if (rec.dist > 1e9) {  // no hit
         return scene.background_color;
     }
-    // std::cout << hitDist << '\t' << bool(hitObj == nullptr) << std::endl;
     assert(hitObj && "Bug: hitObj is a nullptr even when a hit is detected.");
 
     // Step 2: found hit -> get Material of hitObj
-    //   Also compute normal depending on shape, in case mirror_ray()
+    //   normal at hitting surface is stored in rec
     Material currMaterial;
-    Vector3 hitNormal;
-    Vector3 hitPt = localRay.at(hitDist);
+    Vector3 hitNormal = rec.normal;
+    Vector3 hitPt = rec.pos;
     if (Sphere* hitSph = std::get_if<Sphere>(hitObj)) {
         // get material
         currMaterial = scene.materials[hitSph->material_id];
-        // get normal of a sphere
-        hitNormal = normalize(hitPt - hitSph->position);
     } else if (Triangle* hitTri = std::get_if<Triangle>(hitObj)) {
         // get material
-        currMaterial = scene.materials[hitTri->material_id];
-        // get normal of a triangle
-        hitNormal = hitTri->normal;        
+        currMaterial = scene.materials[hitTri->material_id];      
     } else {
         assert(false && "hitObj is neither Sphere or Triangle. Should NEVER happen.");
     }
@@ -352,7 +345,7 @@ Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node root, unsigned int 
     // Step 3 BVH UPDATE: act according to Material (instead of Shape)
     if (Diffuse* diffuseMat = std::get_if<Diffuse>(&currMaterial)) {
         // no recursion, compute diffuse color
-        return BVH_DiffuseColor(scene, hitNormal, localRay.at(hitDist), diffuseMat, root);
+        return BVH_DiffuseColor(scene, hitNormal, hitPt, diffuseMat, root);
     }
     else if (Mirror* mirrorMat = std::get_if<Mirror>(&currMaterial)) {
         // mirror refect ray and do recursion

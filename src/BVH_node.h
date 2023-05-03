@@ -36,7 +36,7 @@ struct BVH_node {
 
     // member functions
     bool hit(const ray& r, Real t_min, Real t_max,
-            const Scene& scene, Real& hitDist, Shape*& hitObj);
+            const Scene& scene, Hit_Record& rec, Shape*& hitObj);
     
     bool write_bounding_box(AABB& output_box) const {
         output_box = box;

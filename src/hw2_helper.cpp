@@ -7,10 +7,10 @@ bool isVisible(Vector3& shadingPt, Vector3& lightPos, Scene& scene) {
     ray lightRay(lightPos, shadingPt, true);
     // test hitting point
     // Baseline version: traverse all shapes and test
-    Real hitDist = infinity<Real>();  // use to determine the closest hit
+    Hit_Record rec;  // use to determine the closest hit
     Shape* hitObj = nullptr;
-    checkRaySceneHit(lightRay, scene, hitDist, hitObj);
-    return !bool(hitDist > EPSILON && hitDist < (1-EPSILON) * d);
+    checkRaySceneHit(lightRay, scene, rec, hitObj);
+    return !bool(rec.dist > EPSILON && rec.dist < (1-EPSILON) * d);
 }
 
 
@@ -53,20 +53,19 @@ Vector3 computeDiffuseColor(Scene& scene, Vector3 normal,
 Vector3 computePixelColor(Scene& scene, ray& localRay, unsigned int recDepth)
 {
     // Step 1: detect hit
-    Real hitDist = infinity<Real>();  // use to determine the closest hit
+    Hit_Record rec;  // use to determine the closest hit
     Shape* hitObj = nullptr;
-    checkRaySceneHit(localRay, scene, hitDist, hitObj);
-    if (hitDist > 1e9) {  // no hit
+    checkRaySceneHit(localRay, scene, rec, hitObj);
+    if (rec.dist > 1e9) {  // no hit
         return scene.background_color;
     }
-    // std::cout << hitDist << '\t' << bool(hitObj == nullptr) << std::endl;
     assert(hitObj && "Bug: hitObj is a nullptr even when a hit is detected.");
 
     // Step 2: found hit -> get Material of hitObj
     //   Also compute normal depending on shape, in case mirror_ray()
     Material currMaterial;
     Vector3 hitNormal;
-    Vector3 hitPt = localRay.at(hitDist);
+    Vector3 hitPt = rec.pos;
     if (Sphere* hitSph = std::get_if<Sphere>(hitObj)) {
         // get material
         currMaterial = scene.materials[hitSph->material_id];
@@ -86,7 +85,7 @@ Vector3 computePixelColor(Scene& scene, ray& localRay, unsigned int recDepth)
     // Step 3: act according to Material (instead of Shape)
     if (Diffuse* diffuseMat = std::get_if<Diffuse>(&currMaterial)) {
         // no recursion, compute diffuse color
-        return computeDiffuseColor(scene, hitNormal, localRay.at(hitDist), diffuseMat);
+        return computeDiffuseColor(scene, hitNormal, hitPt, diffuseMat);
     }
     else if (Mirror* mirrorMat = std::get_if<Mirror>(&currMaterial)) {
         // mirror refect ray and do recursion

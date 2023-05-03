@@ -25,12 +25,12 @@ void checkRaySphereHit(ray localRay,
         if (smallerRoot < EPSILON) {
             if (biggerRoot < EPSILON) {return;}  // 2nd also too close
             
-            if (biggerRoot < rec.t) {  // 2nd hit is a valid update
+            if (biggerRoot < rec.dist) {  // 2nd hit is a valid update
                 // update with bigger root
                 root = biggerRoot;
             } else {  return; }
         } else{
-            if (smallerRoot < rec.t) { // 1st hit is a valid update
+            if (smallerRoot < rec.dist) { // 1st hit is a valid update
                 // update with bigger root
                 root = smallerRoot;    
             } else {  return; }
@@ -39,7 +39,7 @@ void checkRaySphereHit(ray localRay,
 
     // Valid Update (found a closer hit) when reaching here
     // crazy type-cast to make them fit; credit to ChatGPT
-    rec.t = root;
+    rec.dist = root;
     rec.pos = localRay.at(root);
     Vector3 outward_normal = (rec.pos - sph->position) / sph->radius;
     rec.set_face_normal(localRay, outward_normal);
@@ -83,9 +83,9 @@ void checkRayTriHit(ray localRay,
 
     if (t > EPSILON) // ray intersection
     {
-        if (t >= rec.t) {return;}  // no a closer hit
+        if (t >= rec.dist) {return;}  // no a closer hit
         // only update storage variables before returning true
-        rec.t = t;
+        rec.dist = t;
         hitObj = static_cast<Shape*>(static_cast<void*>(tri));
         rec.pos = localRay.at(t);
         rec.set_face_normal(localRay, tri->normal);
@@ -109,7 +109,7 @@ void checkRayShapeHit(ray localRay,
                     Shape*& hitObj)
 {
     if (Sphere *sph = std::get_if<Sphere>(&curr_shape)) {
-        // check ray-sphere intersection; auto update hitDist and hitObj
+        // check ray-sphere intersection; auto update rec and hitObj
         checkRaySphereHit(localRay, sph, rec, hitObj);
     } else if (Triangle *tri = std::get_if<Triangle>(&curr_shape)) {
         // check ray triangle intersection
