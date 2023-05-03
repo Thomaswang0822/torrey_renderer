@@ -1,7 +1,5 @@
 #include "BVH_node.h"
-#include "timer.h"
-
-#include <algorithm>
+#include "helper.h"
 
 
 BVH_node::BVH_node(shared_ptr<Shape> obj) {
@@ -269,4 +267,106 @@ AABB rangeAABB(std::vector<std::shared_ptr<Shape>>& objects,
     }
 
     return AABB(localMin, localMax);
+}
+
+
+/* ### BVH-version ### */
+bool BVH_isVisible(Vector3& shadingPt, Vector3& lightPos, Scene& scene, BVH_node root) {
+    double d = distance(shadingPt, lightPos);
+    // shot ray from light to shadingPt
+    ray lightRay(lightPos, shadingPt, true);
+    // test hitting point
+    // Baseline version: traverse all shapes and test
+    Real hitDist = infinity<Real>();  // use to determine the closest hit
+    Shape* hitObj = nullptr;
+    // hit => not visible (shadow)
+    return !root.hit(lightRay, EPSILON, (1-EPSILON) * d, scene, hitDist, hitObj);
+}
+
+// the only change is calling BVH_isVisible()
+Vector3 BVH_DiffuseColor(Scene& scene, Vector3 normal, 
+                    Vector3 shadingPt, Diffuse* diffuseMat, BVH_node root)
+{
+    Vector3 result = Vector3(0.0, 0.0, 0.0);
+
+    // Get Kd: the reflectance of Diffuse
+    Vector3* diffuseColor = std::get_if<Vector3>(&diffuseMat->reflectance);
+    assert(diffuseColor && "Diffuse material has reflectance not Vec3 RGB");
+    Vector3 Kd = *diffuseColor;
+
+    // attributes that are different for each light
+    Vector3 l;  // normalized shadingPt to light position
+    Real dsq;  // distance squared: shadingPt to light position
+    for (Light light : scene.lights) {
+        // check point light vs area light
+        if (PointLight* ptLight = std::get_if<PointLight>(&light)) {
+            l = normalize(ptLight->position - shadingPt);
+            dsq = distance_squared(shadingPt, ptLight->position);
+            if (BVH_isVisible(shadingPt, ptLight->position, scene, root)) {
+                result += Kd * std::max( abs(dot(normal, l)), 0.0 ) * 
+                    c_INVPI * ptLight->intensity / dsq;
+            }
+        } 
+        else if (DiffuseAreaLight* areaLight = std::get_if<DiffuseAreaLight>(&light)) {
+            std::cout << "Area light not implemented yet; will implement later" 
+                << std::endl;
+            UNUSED(areaLight);
+        }
+        
+    }
+    return result;
+}
+
+
+Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node root, unsigned int recDepth) {
+    // Step 1 BVH UPDATE: detect hit. 
+    Real hitDist = infinity<Real>();  // use to determine the closest hit
+    Shape* hitObj = nullptr;
+    // checkRaySceneHit(localRay, scene, hitDist, hitObj);
+    root.hit(localRay, EPSILON, infinity<Real>(), scene, hitDist, hitObj);
+    if (hitDist > 1e9) {  // no hit
+        return scene.background_color;
+    }
+    // std::cout << hitDist << '\t' << bool(hitObj == nullptr) << std::endl;
+    assert(hitObj && "Bug: hitObj is a nullptr even when a hit is detected.");
+
+    // Step 2: found hit -> get Material of hitObj
+    //   Also compute normal depending on shape, in case mirror_ray()
+    Material currMaterial;
+    Vector3 hitNormal;
+    Vector3 hitPt = localRay.at(hitDist);
+    if (Sphere* hitSph = std::get_if<Sphere>(hitObj)) {
+        // get material
+        currMaterial = scene.materials[hitSph->material_id];
+        // get normal of a sphere
+        hitNormal = normalize(hitPt - hitSph->position);
+    } else if (Triangle* hitTri = std::get_if<Triangle>(hitObj)) {
+        // get material
+        currMaterial = scene.materials[hitTri->material_id];
+        // get normal of a triangle
+        hitNormal = hitTri->normal;        
+    } else {
+        assert(false && "hitObj is neither Sphere or Triangle. Should NEVER happen.");
+    }
+
+    // Step 3 BVH UPDATE: act according to Material (instead of Shape)
+    if (Diffuse* diffuseMat = std::get_if<Diffuse>(&currMaterial)) {
+        // no recursion, compute diffuse color
+        return BVH_DiffuseColor(scene, hitNormal, localRay.at(hitDist), diffuseMat, root);
+    }
+    else if (Mirror* mirrorMat = std::get_if<Mirror>(&currMaterial)) {
+        // mirror refect ray and do recursion
+        ray rayOut = mirror_ray(localRay, hitNormal, hitPt);
+        Vector3* mirrorColor = std::get_if<Vector3>(&mirrorMat->reflectance);
+        assert(mirrorColor && "Mirror material has reflectance not Vec3 RGB");
+        return *mirrorColor // color at current hitting pt
+            * BVH_PixelColor(scene, rayOut, root, recDepth=recDepth-1);   // element-wise mutiply
+    }
+    else {
+        std::cout << "Material not Diffuse or Mirror; will implement later" 
+            << std::endl;
+    }
+
+
+    return Vector3(0.0, 0.0, 0.0);
 }

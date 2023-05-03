@@ -1,9 +1,6 @@
 #pragma once
 
 #include "parse_scene.h"
-#include "Scene.h"
-
-
 
 struct ImageTexture {
     fs::path filename;

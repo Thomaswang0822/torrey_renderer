@@ -1,8 +1,6 @@
 #pragma once
 
 #include "Scene.h"
-#include "ray.h"
-#include "hw2.h"
 
 #include <memory>
 
@@ -109,3 +107,11 @@ size_t SAH_split(std::vector<std::shared_ptr<Shape>>& objects,
 // faster than merging AABB one by one
 AABB rangeAABB(std::vector<std::shared_ptr<Shape>>& objects,
         size_t start, size_t end);
+
+/* ### BVH-version ### */
+
+// BVH_RaySceneHit() is actually BVH_node::hit
+bool BVH_isVisible(Vector3& shadingPt, Vector3& lightPos, Scene& scene, BVH_node root);
+Vector3 BVH_DiffuseColor(Scene& scene, Vector3 normal, 
+                    Vector3 shadingPt, Diffuse* diffuseMat, BVH_node root);
+Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node root, unsigned int recDepth=MAX_DEPTH);

@@ -1,11 +1,7 @@
 #pragma once
 
-#include "image.h"
-#include "ray.h"
-#include "Scene.h"
-#include "pcg.h"
 #include "BVH_node.h"
-#include "progressreporter.h"
+#include "helper.h"
 
 #include <filesystem>
 #include <variant>

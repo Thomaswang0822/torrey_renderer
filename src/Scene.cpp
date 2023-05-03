@@ -137,13 +137,3 @@ AABB surrounding_box(AABB box0, AABB box1) {
 
     return AABB(small, big);
 }
-
-
-Vector3 bbox_color(vector<AABB> bboxes, ray& localRay) {
-    for (AABB bbox : bboxes) {
-        if (bbox.hit(localRay, 0.0, infinity<double>())) {
-            return Vector3(1.0, 1.0, 1.0);
-        }
-    }
-    return Vector3(0.5, 0.5, 0.5);
-}

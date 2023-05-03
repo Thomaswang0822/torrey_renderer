@@ -1,11 +1,10 @@
 #pragma once
 
-#include "torrey.h"
-#include "vector.h"
+#include "all_utils.h"
+// Put all geometric & physical data in the scene here.
 #include "ray.h"
 #include "parse_scene.h"
 #include "material.h"
-#include "flexception.h"
 
 struct Camera
 {
@@ -219,6 +218,3 @@ AABB& get_bbox(std::shared_ptr<Shape> curr_shape);
 // Create an AABB that encloses the given 2 smaller AABBs
 AABB surrounding_box(AABB box0, AABB box1);
 
-// Used ONLY in hw_2_4
-// hit box => (1,1,1), no hit => (0.5, 0.5, 0.5)
-Vector3 bbox_color(std::vector<AABB> bboxes, ray& localRay);
