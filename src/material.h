@@ -17,7 +17,10 @@ struct ImageTexture {
     Real uoffset = 0, voffset = 0;
 
     ImageTexture(const ParsedImageTexture& pImgTex) :
-        img3(imread3(pImgTex.filename)) {
+        img3(imread3(pImgTex.filename)), 
+        uscale(pImgTex.uscale), vscale(pImgTex.vscale),
+        uoffset(pImgTex.uoffset), voffset(pImgTex.voffset) 
+        {
             cout << img3.height << "\t" << img3.width << endl;
             cout << img3.data.size() << endl;
         }
