@@ -112,6 +112,5 @@ AABB rangeAABB(std::vector<std::shared_ptr<Shape>>& objects,
 
 // BVH_RaySceneHit() is actually BVH_node::hit
 bool BVH_isVisible(Vector3& shadingPt, Vector3& lightPos, Scene& scene, BVH_node root);
-Vector3 BVH_DiffuseColor(Scene& scene, Vector3 normal, 
-                    Vector3 shadingPt, Diffuse* diffuseMat, BVH_node root);
+Vector3 BVH_DiffuseColor(Scene& scene, Hit_Record& rec, Diffuse* diffuseMat, BVH_node root);
 Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node root, unsigned int recDepth=MAX_DEPTH);

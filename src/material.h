@@ -29,6 +29,16 @@ struct ImageTexture {
             return Vector3(0.5, 0.5, 0.5);
         }
         
+        // convert
+        int x = img3.width * static_cast<int>( modulo(uscale * u + uoffset, 1.0) );
+        int y = img3.height * static_cast<int>( modulo(vscale * v + voffset, 1.0) );
+        // Very rare case, since actual coordinates should be less than 1.0
+        if (x == img3.width)  { x--; }
+        if (y == img3.height) { y--; }
+
+        // return color
+        const Real color_scale = 1.0 / 255.0;
+        return img3(x, y) * color_scale;
     }
 };
 

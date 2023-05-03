@@ -1,6 +1,7 @@
 #include "BVH_node.h"
 #include "helper.h"
 
+using namespace std;
 
 BVH_node::BVH_node(shared_ptr<Shape> obj) {
     leafObj = obj;
@@ -282,16 +283,23 @@ bool BVH_isVisible(Vector3& shadingPt, Vector3& lightPos, Scene& scene, BVH_node
     return !root.hit(lightRay, EPSILON, (1-EPSILON) * d, scene, rec, hitObj);
 }
 
-// the only change is calling BVH_isVisible()
-Vector3 BVH_DiffuseColor(Scene& scene, Vector3 normal, 
-                    Vector3 shadingPt, Diffuse* diffuseMat, BVH_node root)
+// HW3 Update: deal with ImageTexture Color
+Vector3 BVH_DiffuseColor(Scene& scene, Hit_Record& rec, Diffuse* diffuseMat, BVH_node root)
 {
     Vector3 result = Vector3(0.0, 0.0, 0.0);
 
     // Get Kd: the reflectance of Diffuse
-    Vector3* diffuseColor = std::get_if<Vector3>(&diffuseMat->reflectance);
-    assert(diffuseColor && "Diffuse material has reflectance not Vec3 RGB");
-    Vector3 Kd = *diffuseColor;
+    Vector3 Kd;
+    if (std::get_if<Vector3>(&diffuseMat->reflectance)) {
+        Kd = std::get<Vector3>(diffuseMat->reflectance);
+    } 
+    else if (ImageTexture* txPtr = std::get_if<ImageTexture>(&diffuseMat->reflectance)) {
+        Kd = txPtr->color_value(rec.u, rec.v);
+    }
+    else {
+        Error("Diffuse material has reflectance not Vec3 RGB or ImageTexture");
+    }
+    
 
     // attributes that are different for each light
     Vector3 l;  // normalized shadingPt to light position
@@ -299,10 +307,10 @@ Vector3 BVH_DiffuseColor(Scene& scene, Vector3 normal,
     for (Light light : scene.lights) {
         // check point light vs area light
         if (PointLight* ptLight = std::get_if<PointLight>(&light)) {
-            l = normalize(ptLight->position - shadingPt);
-            dsq = distance_squared(shadingPt, ptLight->position);
-            if (BVH_isVisible(shadingPt, ptLight->position, scene, root)) {
-                result += Kd * std::max( abs(dot(normal, l)), 0.0 ) * 
+            l = normalize(ptLight->position - rec.pos);
+            dsq = distance_squared(rec.pos, ptLight->position);
+            if (BVH_isVisible(rec.pos, ptLight->position, scene, root)) {
+                result += Kd * std::max( abs(dot(rec.normal, l)), 0.0 ) * 
                     c_INVPI * ptLight->intensity / dsq;
             }
         } 
@@ -328,28 +336,17 @@ Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node root, unsigned int 
     assert(hitObj && "Bug: hitObj is a nullptr even when a hit is detected.");
 
     // Step 2: found hit -> get Material of hitObj
-    //   normal at hitting surface is stored in rec
-    Material currMaterial;
-    Vector3 hitNormal = rec.normal;
-    Vector3 hitPt = rec.pos;
-    if (Sphere* hitSph = std::get_if<Sphere>(hitObj)) {
-        // get material
-        currMaterial = scene.materials[hitSph->material_id];
-    } else if (Triangle* hitTri = std::get_if<Triangle>(hitObj)) {
-        // get material
-        currMaterial = scene.materials[hitTri->material_id];      
-    } else {
-        assert(false && "hitObj is neither Sphere or Triangle. Should NEVER happen.");
-    }
+    //   to decide which function to call
+    Material currMaterial = scene.materials[rec.mat_id];
 
     // Step 3 BVH UPDATE: act according to Material (instead of Shape)
     if (Diffuse* diffuseMat = std::get_if<Diffuse>(&currMaterial)) {
         // no recursion, compute diffuse color
-        return BVH_DiffuseColor(scene, hitNormal, hitPt, diffuseMat, root);
+        return BVH_DiffuseColor(scene, rec, diffuseMat, root);
     }
     else if (Mirror* mirrorMat = std::get_if<Mirror>(&currMaterial)) {
         // mirror refect ray and do recursion
-        ray rayOut = mirror_ray(localRay, hitNormal, hitPt);
+        ray rayOut = mirror_ray(localRay, rec.normal, rec.pos);
         Vector3* mirrorColor = std::get_if<Vector3>(&mirrorMat->reflectance);
         assert(mirrorColor && "Mirror material has reflectance not Vec3 RGB");
         return *mirrorColor // color at current hitting pt
