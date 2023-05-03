@@ -2,6 +2,8 @@
 
 #include "parse_scene.h"
 
+using namespace std;
+
 /**
  * @brief One ImageTexture maps to one RGB img
  * 
@@ -15,7 +17,10 @@ struct ImageTexture {
     Real uoffset = 0, voffset = 0;
 
     ImageTexture(const ParsedImageTexture& pImgTex) :
-        img3(imread3(pImgTex.filename)) {}
+        img3(imread3(pImgTex.filename)) {
+            cout << img3.height << "\t" << img3.width << endl;
+            cout << img3.data.size() << endl;
+        }
 
 
     /**
@@ -30,15 +35,15 @@ struct ImageTexture {
         }
         
         // convert
-        int x = img3.width * static_cast<int>( modulo(uscale * u + uoffset, 1.0) );
-        int y = img3.height * static_cast<int>( modulo(vscale * v + voffset, 1.0) );
+        int x = static_cast<int>( img3.width * modulo(uscale * u + uoffset, 1.0) );
+        int y = static_cast<int>( img3.height * modulo(vscale * v + voffset, 1.0) );
         // Very rare case, since actual coordinates should be less than 1.0
         if (x == img3.width)  { x--; }
         if (y == img3.height) { y--; }
+        // cout << " XY " << x << "\t" << y << endl;
 
         // return color
-        const Real color_scale = 1.0 / 255.0;
-        return img3(x, y) * color_scale;
+        return img3(x, y);
     }
 };
 

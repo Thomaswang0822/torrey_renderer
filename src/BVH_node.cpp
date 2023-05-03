@@ -337,7 +337,7 @@ Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node root, unsigned int 
 
     // Step 2: found hit -> get Material of hitObj
     //   to decide which function to call
-    Material currMaterial = scene.materials[rec.mat_id];
+    Material& currMaterial = scene.materials[rec.mat_id];
 
     // Step 3 BVH UPDATE: act according to Material (instead of Shape)
     if (Diffuse* diffuseMat = std::get_if<Diffuse>(&currMaterial)) {
