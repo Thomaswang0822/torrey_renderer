@@ -38,13 +38,13 @@ void checkRaySphereHit(ray localRay,
     }
 
     // Valid Update (found a closer hit) when reaching here
-    // crazy type-cast to make them fit; credit to ChatGPT
     rec.dist = root;
     rec.pos = localRay.at(root);
     Vector3 outward_normal = (rec.pos - sph->position) / sph->radius;
     rec.set_face_normal(localRay, outward_normal);
     Sphere::get_sphere_uv(outward_normal, rec.u, rec.v);
     rec.mat_id = sph->material_id;
+    // crazy type-cast to make them fit; credit to ChatGPT
     hitObj = static_cast<Shape*>(static_cast<void*>(sph));
 }
 
@@ -86,7 +86,6 @@ void checkRayTriHit(ray localRay,
         if (t >= rec.dist) {return;}  // no a closer hit
         // only update storage variables before returning true
         rec.dist = t;
-        hitObj = static_cast<Shape*>(static_cast<void*>(tri));
         rec.pos = localRay.at(t);
         rec.set_face_normal(localRay, tri->normal);
         // if the mesh contains UV coordinates
@@ -95,7 +94,9 @@ void checkRayTriHit(ray localRay,
         } else { // does not come with UV; use baryC
             rec.u = u; rec.v = v;
         }
-        
+        rec.mat_id = tri->material_id;
+        // crazy type-cast to make them fit; credit to ChatGPT
+        hitObj = static_cast<Shape*>(static_cast<void*>(tri));
     }
     else {// This means a line intersection but not a ray intersection.
         return;
