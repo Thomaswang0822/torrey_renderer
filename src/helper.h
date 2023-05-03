@@ -15,23 +15,23 @@
 
 void checkRaySphereHit(ray localRay,
                        const Sphere* sph,
-                       Real& hitDist,
+                       Hit_Record& rec,
                        Shape*& hitObj);
 
 
 void checkRayTriHit(ray localRay,
                     const Triangle* tri,
-                    Real& hitDist,
+                    Hit_Record& rec,
                     Shape*& hitObj);
 
 void checkRayShapeHit(ray localRay,
                     Shape& curr_shape,
-                    Real& hitDist,
+                    Hit_Record& rec,
                     Shape*& hitObj);
 
 void checkRaySceneHit(ray localRay,
                       Scene& scene,
-                      Real& hitDist,
+                      Hit_Record& rec,
                       Shape*& hitObj);
 
 

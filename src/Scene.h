@@ -6,6 +6,8 @@
 #include "parse_scene.h"
 #include "material.h"
 
+using namespace std;
+
 struct Camera
 {
     Vector3 origin;
@@ -117,6 +119,22 @@ struct Sphere : public ShapeBase {
         // Vector3 - Real has been overloaded
         box = AABB(pos-r, pos+r);
     };
+
+    static void get_sphere_uv(const Vector3& p, double& u, double& v) {
+        // p: a given point on the sphere of radius one, centered at the origin.
+        // u: returned value [0,1] of angle around the Y axis from X=-1.
+        // v: returned value [0,1] of angle from Y=-1 to Y=+1.
+        //     <1 0 0> yields <0.50 0.50>       <-1  0  0> yields <0.00 0.50>
+        //     <0 1 0> yields <0.50 1.00>       < 0 -1  0> yields <0.50 0.00>
+        //     <0 0 1> yields <0.25 0.50>       < 0  0 -1> yields <0.75 0.50>
+
+        auto theta = acos(-p.y);
+        auto phi = atan2(-p.z, p.x) + c_PI;
+
+        u = phi / (2 * c_PI);
+        v = theta / c_PI;
+    }
+
 };
 
 struct TriangleMesh : public ShapeBase {
@@ -134,6 +152,8 @@ struct Triangle : public ShapeBase{
     int face_id = -1;
     int mesh_id = -1;   // in order to retrieve material and light id
     AABB box;   // has default constructor
+    Vector2 uv0, uv1, uv2;  // uv coordinates; possibly null
+    bool hasUV = false;
 
     // naive constructor; used in hw_2_1 and hw_2_2
     Triangle(Vector3 pos0, Vector3 pos1, Vector3 pos2) :
@@ -170,7 +190,22 @@ struct Triangle : public ShapeBase{
             std::max(std::max(p0.z, p1.z), p2.z)
         );
         box = AABB(minPt, maxPt);
-        // FUTURE: deal with uvs
+        // deal with uvs
+        if (mesh->uvs.size() > 0) {
+            uv0 = mesh->uvs[id3[0]];
+            uv1 = mesh->uvs[id3[1]];
+            uv2 = mesh->uvs[id3[2]];
+            hasUV = true;
+        }
+    }
+
+    // uv of a point requires vertex uv info => non-static
+    void get_tri_uv(Real b1, Real b2, double& rec_u, double& rec_v) {
+        // TODO:
+        assert(hasUV);
+
+        rec_u = (1.0 - b1 - b2) * uv0.x + b1 * uv1.x + b2 * uv2.x;
+        rec_v = (1.0 - b1 - b2) * uv0.y + b1 * uv1.y + b2 * uv2.y;
     }
 };
 
@@ -205,6 +240,22 @@ struct Scene {
     int samples_per_pixel;
     // For the Triangle in the shapes to reference to.
     std::vector<TriangleMesh> meshes;
+};
+
+
+struct Hit_Record {
+    Vector3 pos;
+    Vector3 normal;
+    int mat_id;
+    double t;  // hit distance
+    double u;
+    double v;
+    bool front_face;
+
+    inline void set_face_normal(const ray& r, const Vector3& outward_normal) {
+        front_face = dot(r.direction(), outward_normal) < 0;
+        normal = front_face ? outward_normal :-outward_normal;
+    }
 };
 
 

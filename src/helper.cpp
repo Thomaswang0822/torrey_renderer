@@ -3,7 +3,7 @@
 
 void checkRaySphereHit(ray localRay,
                        Sphere* sph,
-                       Real& hitDist,
+                       Hit_Record& rec,
                        Shape*& hitObj) 
 {
     Vector3 oc = localRay.origin() - sph->position;
@@ -12,6 +12,7 @@ void checkRaySphereHit(ray localRay,
     auto half_b = dot(oc, localRay.direction());
     auto c = length_squared(oc) - sph->radius * sph->radius;
     auto discriminant = half_b*half_b - a*c;
+    Real root;
     if (discriminant < 0) {
         // no hit
         return;
@@ -19,36 +20,41 @@ void checkRaySphereHit(ray localRay,
         // minus because we want the closer hitting point -> smaller t
         double smallerRoot = (-half_b - sqrt(discriminant) ) / a;
         double biggerRoot = (-half_b + sqrt(discriminant) ) / a;
+
+        // 1st hit too close, check 2nd hit: useful when Ray can travel inside Object
         if (smallerRoot < EPSILON) {
-            // check the larger root: useful when Ray can travel inside Object
-            if (biggerRoot < EPSILON) {return;}
+            if (biggerRoot < EPSILON) {return;}  // 2nd also too close
             
-            if (biggerRoot < hitDist) {
+            if (biggerRoot < rec.t) {  // 2nd hit is a valid update
                 // update with bigger root
-                hitDist = biggerRoot;
-                // crazy type-cast to make them fit; credit to ChatGPT
-                hitObj = static_cast<Shape*>(static_cast<void*>(sph));
-            }
+                root = biggerRoot;
+            } else {  return; }
         } else{
-            if (smallerRoot < hitDist) {
+            if (smallerRoot < rec.t) { // 1st hit is a valid update
                 // update with bigger root
-                hitDist = smallerRoot;
-                // crazy type-cast to make them fit; credit to ChatGPT
-                hitObj = static_cast<Shape*>(static_cast<void*>(sph));
-            }
+                root = smallerRoot;    
+            } else {  return; }
         }
-        
-        // std::cout << "Sphere hit: " << bool(hitObj == nullptr) << '\t' <<
-        //     bool(sph == nullptr) << std::endl;
     }
+
+    // Valid Update (found a closer hit) when reaching here
+    // crazy type-cast to make them fit; credit to ChatGPT
+    rec.t = root;
+    rec.pos = localRay.at(root);
+    Vector3 outward_normal = (rec.pos - sph->position) / sph->radius;
+    rec.set_face_normal(localRay, outward_normal);
+    Sphere::get_sphere_uv(outward_normal, rec.u, rec.v);
+    rec.mat_id = sph->material_id;
+    hitObj = static_cast<Shape*>(static_cast<void*>(sph));
 }
 
 
 void checkRayTriHit(ray localRay,
                     Triangle* tri,
-                    Real& hitDist,
+                    Hit_Record& rec,
                     Shape*& hitObj)
 {
+    // local u,v are baryC of a Triangle, i.e. (1-u-v, u, v)
     Vector3 h, s, q;
     Real a, f, u, v;
     h = cross(localRay.direction(), tri->e2);
@@ -77,12 +83,19 @@ void checkRayTriHit(ray localRay,
 
     if (t > EPSILON) // ray intersection
     {
-        if (t >= hitDist) {return;}  // no a closer hit
+        if (t >= rec.t) {return;}  // no a closer hit
         // only update storage variables before returning true
-        hitDist = t;
+        rec.t = t;
         hitObj = static_cast<Shape*>(static_cast<void*>(tri));
-        // std::cout << "Triangle hit" << bool(hitObj == nullptr) << '\t' <<
-        //     bool(tri == nullptr) << std::endl;
+        rec.pos = localRay.at(t);
+        rec.set_face_normal(localRay, tri->normal);
+        // if the mesh contains UV coordinates
+        if (tri->hasUV) {
+            tri->get_tri_uv(u, v, rec.u, rec.v);
+        } else { // does not come with UV; use baryC
+            rec.u = u; rec.v = v;
+        }
+        
     }
     else {// This means a line intersection but not a ray intersection.
         return;
@@ -92,15 +105,15 @@ void checkRayTriHit(ray localRay,
 
 void checkRayShapeHit(ray localRay,
                     Shape& curr_shape,
-                    Real& hitDist,
+                    Hit_Record& rec,
                     Shape*& hitObj)
 {
     if (Sphere *sph = std::get_if<Sphere>(&curr_shape)) {
         // check ray-sphere intersection; auto update hitDist and hitObj
-        checkRaySphereHit(localRay, sph, hitDist, hitObj);
+        checkRaySphereHit(localRay, sph, rec, hitObj);
     } else if (Triangle *tri = std::get_if<Triangle>(&curr_shape)) {
         // check ray triangle intersection
-        checkRayTriHit(localRay, tri, hitDist, hitObj);
+        checkRayTriHit(localRay, tri, rec, hitObj);
     } else {
         assert(false);
     }
@@ -109,12 +122,12 @@ void checkRayShapeHit(ray localRay,
 
 void checkRaySceneHit(ray localRay,
                       Scene& scene,
-                      Real& hitDist,
+                      Hit_Record& rec,
                       Shape*& hitObj)
 {
     // Naive way: loop thru all shapes
     for (int i = 0; i < (int)scene.shapes.size(); i++) {
         Shape &curr_shape = scene.shapes[i];
-        checkRayShapeHit(localRay, curr_shape, hitDist, hitObj);
+        checkRayShapeHit(localRay, curr_shape, rec, hitObj);
     }
 }
