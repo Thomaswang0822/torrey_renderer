@@ -9,6 +9,9 @@ struct ImageTexture {
     fs::path filename;
     Real uscale = 1, vscale = 1;
     Real uoffset = 0, voffset = 0;
+
+    ImageTexture(const ParsedImageTexture& pImgTex) :
+        filename(pImgTex.filename) {}
 };
 
 using Color = std::variant<Vector3 /* RGB */, ImageTexture>;

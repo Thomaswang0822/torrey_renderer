@@ -43,23 +43,37 @@ Scene::Scene(const ParsedScene &scene) :
             }
             tri_mesh_count++;
         } else {
-            assert(false);
+            Error("Not Sphere or TriangleMesh.");
         }
     }
 
     // Copy the materials
+    // HW3 UPDATE: now a Color can be Vector3 or struct ImageTexture
     for (const ParsedMaterial &parsed_mat : scene.materials) {
         if (auto *diffuse = get_if<ParsedDiffuse>(&parsed_mat)) {
-            // We assume the reflectance is always RGB for now.
-            materials.push_back(Diffuse{get<Vector3>(diffuse->reflectance)});
+            if (get_if<Vector3>(&diffuse->reflectance)) {
+                materials.push_back(Diffuse{get<Vector3>(diffuse->reflectance)});
+            }
+            else if (get_if<ParsedImageTexture>(&diffuse->reflectance)) {
+                materials.push_back(Diffuse{get<ParsedImageTexture>(diffuse->reflectance)});
+            }
+            else {
+                Error("Diffuse: not Vector3 or ImageTexture.");
+            }    
         } else if (auto *mirror = get_if<ParsedMirror>(&parsed_mat)) {
-            // We assume the reflectance is always RGB for now.
-            materials.push_back(Mirror{get<Vector3>(mirror->reflectance)});
+            if (get_if<Vector3>(&mirror->reflectance)) {
+                materials.push_back(Mirror{get<Vector3>(mirror->reflectance)});
+            }
+            else if (get_if<ParsedImageTexture>(&mirror->reflectance)) {
+                materials.push_back(Mirror{get<ParsedImageTexture>(mirror->reflectance)});
+            }
+            else {
+                Error("Mirror: not Vector3 or ImageTexture.");
+            }
         } else {
-            assert(false);
+            Error("Not Diffuse or Mirror material.");
         }
     }
-
     // Copy the lights
     for (const ParsedLight &parsed_light : scene.lights) {
         // We assume all lights are point lights for now.

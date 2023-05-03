@@ -5,6 +5,7 @@
 #include "ray.h"
 #include "parse_scene.h"
 #include "material.h"
+#include "flexception.h"
 
 struct Camera
 {
