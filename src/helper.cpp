@@ -42,7 +42,7 @@ void checkRaySphereHit(ray localRay,
     rec.pos = localRay.at(root);
     Vector3 outward_normal = (rec.pos - sph->position) / sph->radius;
     rec.set_face_normal(localRay, outward_normal);
-    Sphere::get_sphere_uv(outward_normal, rec.u, rec.v);
+    sph->get_sphere_uv(outward_normal, rec.u, rec.v);
     rec.mat_id = sph->material_id;
     // crazy type-cast to make them fit; credit to ChatGPT
     hitObj = static_cast<Shape*>(static_cast<void*>(sph));

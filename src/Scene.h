@@ -120,16 +120,9 @@ struct Sphere : public ShapeBase {
         box = AABB(pos-r, pos+r);
     };
 
-    static void get_sphere_uv(const Vector3& p, double& u, double& v) {
-        // p: a given point on the sphere of radius one, centered at the origin.
-        // u: returned value [0,1] of angle around the Y axis from X=-1.
-        // v: returned value [0,1] of angle from Y=-1 to Y=+1.
-        //     <1 0 0> yields <0.50 0.50>       <-1  0  0> yields <0.00 0.50>
-        //     <0 1 0> yields <0.50 1.00>       < 0 -1  0> yields <0.50 0.00>
-        //     <0 0 1> yields <0.25 0.50>       < 0  0 -1> yields <0.75 0.50>
-
-        auto theta = acos(-p.y);
-        auto phi = atan2(-p.z, p.x) + c_PI;
+    void get_sphere_uv(Vector3 normal, double& u, double& v) {
+        auto theta = acos(-normal.y);
+        auto phi = atan2(-normal.z, normal.x) + c_PI;
 
         u = phi / (2 * c_PI);
         v = theta / c_PI;
@@ -201,8 +194,7 @@ struct Triangle : public ShapeBase{
 
     // uv of a point requires vertex uv info => non-static
     void get_tri_uv(Real b1, Real b2, double& rec_u, double& rec_v) {
-        // TODO:
-        assert(hasUV);
+        assert(hasUV && "Calling get_tri_uv() on Triangle without uv");
 
         rec_u = (1.0 - b1 - b2) * uv0.x + b1 * uv1.x + b2 * uv2.x;
         rec_v = (1.0 - b1 - b2) * uv0.y + b1 * uv1.y + b2 * uv2.y;

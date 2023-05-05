@@ -25,7 +25,10 @@ BVH_node::BVH_node(std::vector<shared_ptr<Shape>>& objects, Scene& scene,
         }
         else if (Triangle* tri = std::get_if<Triangle>(shapePtr)) {
             // get its mesh count
-            int meshSize = scene.meshes[tri->mesh_id].indices.size();
+            int meshSize = 1;
+            if (tri->mesh_id != -1) {
+                meshSize = scene.meshes[tri->mesh_id].indices.size();
+            }
             // call ordinary constructor
             meshBVH.push_back(std::make_shared<BVH_node>(
                 objects,
@@ -41,7 +44,8 @@ BVH_node::BVH_node(std::vector<shared_ptr<Shape>>& objects, Scene& scene,
     if (meshBVH.size() == 1) {
         left = meshBVH[0].get()->left;
         right = meshBVH[0].get()->right;
-        box = meshBVH[0].get()->box;
+        leafObj = meshBVH[0].get()->leafObj;
+        box = AABB(meshBVH[0].get()->box);
         return;
     }
 
