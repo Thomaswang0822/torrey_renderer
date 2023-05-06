@@ -87,7 +87,9 @@ void checkRayTriHit(ray localRay,
         // only update storage variables before returning true
         rec.dist = t;
         rec.pos = localRay.at(t);
-        rec.set_face_normal(localRay, tri->normal);
+        // hw 3_2 UPDATE: interpolate vertex normal
+        Vector3 shadingNormal = tri->shading_normal(u,v);
+        rec.set_face_normal(localRay, shadingNormal);
         // if the mesh contains UV coordinates
         if (tri->hasUV) {
             tri->get_tri_uv(u, v, rec.u, rec.v);

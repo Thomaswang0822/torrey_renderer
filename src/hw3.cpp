@@ -82,28 +82,17 @@ Image3 hw_3_1(const std::vector<std::string> &params) {
     return img;
 }
 
+// Alias to hw_3_1()
+// shading normal only involves a tiny fix.
+// See helper.cpp L90 and Scene.h L204
 Image3 hw_3_2(const std::vector<std::string> &params) {
     // Homework 3.2: shading normals
-    if (params.size() < 1) {
-        return Image3(0, 0);
-    }
-
-    ParsedScene scene = parse_scene(params[0]);
-    UNUSED(scene);
-
-    return Image3(0, 0);
+    return hw_3_1(params);
 }
 
 Image3 hw_3_3(const std::vector<std::string> &params) {
     // Homework 3.3: Fresnel
-    if (params.size() < 1) {
-        return Image3(0, 0);
-    }
-
-    ParsedScene scene = parse_scene(params[0]);
-    UNUSED(scene);
-
-    return Image3(0, 0);
+    return hw_3_1(params);
 }
 
 Image3 hw_3_4(const std::vector<std::string> &params) {

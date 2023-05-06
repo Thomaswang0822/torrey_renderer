@@ -3,6 +3,7 @@
 #include "all_utils.h"
 // Put all geometric & physical data in the scene here.
 #include "ray.h"
+#include "Hit_Record.h"
 #include "parse_scene.h"
 #include "material.h"
 
@@ -199,6 +200,15 @@ struct Triangle : public ShapeBase{
         rec_u = (1.0 - b1 - b2) * uv0.x + b1 * uv1.x + b2 * uv2.x;
         rec_v = (1.0 - b1 - b2) * uv0.y + b1 * uv1.y + b2 * uv2.y;
     }
+
+    // interpolate 3 vertex normals with baryC
+    inline Vector3 shading_normal(double b1, double b2) {
+        return normalize(
+            (1.0-b1-b2) * n0 +
+            b1 * n1 +
+            b2 * n2
+        );
+    }
 };
 
 using Shape = std::variant<Sphere, Triangle>;
@@ -232,25 +242,6 @@ struct Scene {
     int samples_per_pixel;
     // For the Triangle in the shapes to reference to.
     std::vector<TriangleMesh> meshes;
-};
-
-
-struct Hit_Record {
-    Vector3 pos;
-    Vector3 normal;
-    int mat_id;
-    Real dist;  // hit distance
-    double u, v;  // uv coordinate of hit point local to hit obj
-    bool front_face;
-
-    // Default constructor: set hitDist = infinity
-    Hit_Record() : 
-    dist(infinity<Real>()) {}
-
-    inline void set_face_normal(const ray& r, const Vector3& outward_normal) {
-        front_face = dot(r.direction(), outward_normal) < 0;
-        normal = front_face ? outward_normal :-outward_normal;
-    }
 };
 
 

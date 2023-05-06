@@ -50,6 +50,7 @@ set(SRCS src/3rdparty/miniz.h
          src/BVH_node.h
          src/helper.h
          src/all_utils.h
+         src/Hit_Record.h
          src/compute_normals.cpp
          src/hw1.cpp
          src/hw2.cpp

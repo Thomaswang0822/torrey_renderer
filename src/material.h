@@ -25,9 +25,11 @@ struct ImageTexture {
 
     /**
      * @brief Given a uv position, return a Vector3 RGB on the texture image
+     * We do bilinear interpolation with the weighted mean approach.
+     * @ref https://en.wikipedia.org/wiki/Bilinear_interpolation#Weighted_mean
      * 
      */
-    Vector3 color_value(double u, double v) {
+    Vector3 blerp_color(double u, double v) const {
         // null guardian
         if (img3.data.size() == 0) {
             // TODO: change to scene background color
@@ -35,19 +37,46 @@ struct ImageTexture {
         }
         
         // convert
-        int x = static_cast<int>( img3.width * modulo(uscale * u + uoffset, 1.0) );
-        int y = static_cast<int>( img3.height * modulo(vscale * v + voffset, 1.0) );
-        // Very rare case, since actual coordinates should be less than 1.0
-        if (x == img3.width)  { x--; }
-        if (y == img3.height) { y--; }
-        // cout << " XY " << x << "\t" << y << endl;
+        double x = (img3.width - 1) * modulo(uscale * u + uoffset, 1.0) - 1e-9;
+        double y = (img3.height - 1) * modulo(vscale * v + voffset, 1.0) - 1e-9;
 
-        // return color
-        return img3(x, y);
+        // obtain x1 y1 x2 y2
+        int x1 = static_cast<int>(x); int y1 = static_cast<int>(y);
+        int x2 = x1 + 1; int y2 = y1 + 1;
+        // do bilinear interpolation, Weighted Mean approach
+        // (x2 - x1) * (y2 - y1) = 1
+        double w11 = (x2-x) * (y2-y);
+        double w12 = (x2-x) * (y-y1);
+        double w21 = (x-x1) * (y2-y);
+        double w22 = (x-x1) * (y-y1);
+        return w11 * img3(x1, y1) + w12 * img3(x1, y2) + w21 * img3(x2, y1) + w22 * img3(x2, y2);
+
     }
 };
 
 using Color = std::variant<Vector3 /* RGB */, ImageTexture>;
+
+
+/**
+ * @brief Given a Color, return a Vector3 RGB
+ * if Color is Vector3, then trivial case
+ * if Color is ImageTexture, call funciton
+ * 
+ * @param refl 
+ * @param u,v uv coordinate of hit record
+ * @return Vector3 
+ */
+inline Vector3 eval_RGB(const Color& refl, const double u, const double v) {
+    if (std::get_if<Vector3>(&refl)) {
+        return std::get<Vector3>(refl);
+    } 
+    else if (const ImageTexture* txPtr = std::get_if<ImageTexture>(&refl)) {
+        return txPtr->blerp_color(u, v);
+    }
+    else {
+        Error("Diffuse material has reflectance not Vec3 RGB or ImageTexture");
+    }
+}
 
 struct Diffuse {
     Color reflectance;
@@ -57,9 +86,36 @@ struct Mirror {
     Color reflectance;
 };
 
+inline double compute_SchlickFresnel(double F0, double cos_theta) {
+    return F0 + (1.0 - F0) * pow(1.0 - cos_theta, 5.0);
+}
+
+/**
+ * @brief Special handle for Mirror "component" or a Material.
+ * Instead of directly multiplying the color with the reflectance, 
+ * we multiply it with the Schlick Fresnel
+ * Formula: F = F0 + (1 − F0) (1 − n · l)^5
+ * 
+ * @note We use the RGB value of a color as F0
+ * 
+ * @param refl reflectance attribute of any Material
+ * @param u,v uv coordinate of hit record
+ * @param cos_theta dot product between outgoing ray (to light) direction and hitting normal
+ * @return Vector3 
+ */
+inline Vector3 mirror_SchlickFresnel_color(const Color& refl, 
+        const double u, const double v, double cos_theta) {
+    Vector3 F0 = eval_RGB(refl, u, v);
+    return F0 + (-F0 + 1.0) * pow(1.0 - cos_theta, 5.0);
+}
+
 struct Plastic {
     Real eta; // index of refraction
     Color reflectance;
+
+    inline Real get_F0() {
+        return pow( (eta - 1.0) / (eta + 1.0), 2.0 );
+    }
 };
 
 struct Phong {

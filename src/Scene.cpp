@@ -70,8 +70,24 @@ Scene::Scene(const ParsedScene &scene) :
             else {
                 Error("Mirror: not Vector3 or ImageTexture.");
             }
-        } else {
-            Error("Not Diffuse or Mirror material.");
+        } else if (auto *plastic = get_if<ParsedPlastic>(&parsed_mat)) {
+            if (get_if<Vector3>(&plastic->reflectance)) {
+                materials.push_back(
+                    Plastic{plastic->eta, get<Vector3>(plastic->reflectance)}
+                );
+            }
+            else if (get_if<ParsedImageTexture>(&plastic->reflectance)) {
+                materials.push_back(
+                    Plastic{plastic->eta, get<ParsedImageTexture>(plastic->reflectance)}
+                );
+            }
+            else {
+                Error("Plastic: not Vector3 or ImageTexture.");
+            }
+        }
+        
+        else {
+            Error("Not Diffuse or Mirror or Plastic material.");
         }
     }
     // Copy the lights
