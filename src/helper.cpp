@@ -1,5 +1,6 @@
 #include "helper.h"
 
+using namespace std;
 
 void checkRaySphereHit(ray localRay,
                        Sphere* sph,
@@ -111,10 +112,10 @@ void checkRayShapeHit(ray localRay,
                     Hit_Record& rec,
                     Shape*& hitObj)
 {
-    if (Sphere *sph = std::get_if<Sphere>(&curr_shape)) {
+    if (Sphere *sph = get_if<Sphere>(&curr_shape)) {
         // check ray-sphere intersection; auto update rec and hitObj
         checkRaySphereHit(localRay, sph, rec, hitObj);
-    } else if (Triangle *tri = std::get_if<Triangle>(&curr_shape)) {
+    } else if (Triangle *tri = get_if<Triangle>(&curr_shape)) {
         // check ray triangle intersection
         checkRayTriHit(localRay, tri, rec, hitObj);
     } else {
@@ -136,10 +137,10 @@ void checkRaySceneHit(ray localRay,
 }
 
 
-Vector3 sample_point(const Shape* hitObj, pcg32_state& rng) {
+Vector3 sample_point(const Shape* lightObj, pcg32_state& rng) {
     Real u1 = next_pcg32_real<Real>(rng);
     Real u2 = next_pcg32_real<Real>(rng);
-    if (const Sphere *sph = std::get_if<Sphere>(hitObj)) {
+    if (const Sphere *sph = get_if<Sphere>(lightObj)) {
         // sample from sphere: 
         // elevation angle theta; azumith angle phi
         double theta = acos(1.0 - 2 * u1);
@@ -152,7 +153,7 @@ Vector3 sample_point(const Shape* hitObj, pcg32_state& rng) {
             cos(theta)
         ) * sph->radius + sph->position;
 
-    } else if (const Triangle *tri = std::get_if<Triangle>(hitObj)) {
+    } else if (const Triangle *tri = get_if<Triangle>(lightObj)) {
         Real b1 = 1 - sqrt(u1);
         Real b2 = u2 * sqrt(u1);
         // use baryC to get position
@@ -164,4 +165,24 @@ Vector3 sample_point(const Shape* hitObj, pcg32_state& rng) {
     } else {
         assert(false);
     }
+}
+
+
+Vector3 areaLight_contribution(const Shape* lightObj, Hit_Record& rec, 
+            const Vector3& lightPos, const Vector3& Kd, 
+            const Vector3& I, const Vector3& nx)
+{
+
+    // These 2 are unique for every sample point.
+    
+    // normalized direction: shadingPt to light position
+    Vector3 l = normalize(lightPos - rec.pos);
+    // distance squared: shadingPt to light position
+    Real dsq = distance_squared(rec.pos, lightPos);
+
+    // nx also, but it depend on Sphere/Triangle, so we handle it outside.
+
+    return (Kd * I * c_INVPI / dsq) // const
+        * std::max(dot(rec.normal, l), 0.0) // max (ns · l, 0)
+        * std::max(dot(-nx, l), 0.0);  // max (−nx · l, 0)
 }

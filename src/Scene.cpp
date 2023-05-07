@@ -18,6 +18,17 @@ Scene::Scene(const ParsedScene &scene) :
     }
     meshes.resize(tri_mesh_count);
 
+    /**
+     * @note In ParsedScene, shapes contains Sphere and TriangleMesh;
+     * here shapes contains Sphere and Triangle. So we need a way to map
+     * shape_id from the ParsedScene context to that in the Scene context.
+     * 
+     * if ParsedScene.shapes looks like: [sph, [3], sph],
+     * this map should look like [0, 1, 4]
+     */
+    std::vector<int> shape_id_map;
+    int currIdx = 0;
+
     // Extract the shapes
     tri_mesh_count = 0;
     for (int i = 0; i < (int)scene.shapes.size(); i++) {
@@ -29,6 +40,8 @@ Scene::Scene(const ParsedScene &scene) :
                     sph->position, sph->radius
                 }
             );
+            shape_id_map.push_back(currIdx);
+            currIdx++;
         } else if (auto *parsed_mesh = get_if<ParsedTriangleMesh>(&parsed_shape)) {
             meshes[tri_mesh_count] = TriangleMesh{
                 {parsed_mesh->material_id, parsed_mesh->area_light_id},
@@ -38,10 +51,13 @@ Scene::Scene(const ParsedScene &scene) :
                 parsed_mesh->uvs
             };
             // Extract all the individual triangles
-            for (int face_index = 0; face_index < (int)parsed_mesh->indices.size(); face_index++) {
+            int nTri = (int)parsed_mesh->indices.size();
+            for (int face_index = 0; face_index < nTri; face_index++) {
                 shapes.push_back(Triangle{face_index, &meshes[tri_mesh_count], tri_mesh_count});
             }
             tri_mesh_count++;
+            shape_id_map.push_back(currIdx);
+            currIdx += nTri;
         } else {
             Error("Not Sphere or TriangleMesh.");
         }
@@ -92,11 +108,17 @@ Scene::Scene(const ParsedScene &scene) :
     }
     // Copy the lights
     for (const ParsedLight &parsed_light : scene.lights) {
-        // We assume all lights are point lights for now.
-        ParsedPointLight point_light = get<ParsedPointLight>(parsed_light);
-        // lights.push_back(PointLight{point_light.intensity, point_light.position});
-        // why is it swapped?
-        lights.push_back(PointLight{point_light.position, point_light.intensity});
+        // HW3 UPDATE: Deal with area light
+        if (get_if<ParsedPointLight>(&parsed_light)) {
+            ParsedPointLight point_light = get<ParsedPointLight>(parsed_light);
+            lights.push_back(PointLight{point_light.position, point_light.intensity});
+        } else if (get_if<ParsedDiffuseAreaLight>(&parsed_light)) {
+            ParsedDiffuseAreaLight area_light = get<ParsedDiffuseAreaLight>(parsed_light);
+            // see: shape_id_map
+            int primId = shape_id_map[area_light.shape_id];
+            lights.push_back(DiffuseAreaLight{primId, area_light.radiance});
+        }
+            
     }
 }
 

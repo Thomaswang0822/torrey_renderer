@@ -143,6 +143,7 @@ struct Triangle : public ShapeBase{
     Vector3 n0, n1, n2;
     Vector3 normal;  // may need triangle normal
     Vector3 e1, e2;  // p1-p0, p2-p0; not normalized
+    double area;
     int face_id = -1;
     int mesh_id = -1;   // in order to retrieve material and light id
     AABB box;   // has default constructor
@@ -165,6 +166,7 @@ struct Triangle : public ShapeBase{
         p1 = mesh->positions[id3[1]];
         p2 = mesh->positions[id3[2]];
         e1 = p1 - p0;  e2 = p2 - p0;
+        area = 0.5 * length(cross(e1, e2));
         // write normals
         n0 = mesh->normals[id3[0]];
         n1 = mesh->normals[id3[1]];
@@ -183,6 +185,9 @@ struct Triangle : public ShapeBase{
             uv2 = mesh->uvs[id3[2]];
             hasUV = true;
         }
+        // set material_id and light_id
+        material_id = mesh->material_id;
+        area_light_id = mesh->area_light_id;
     }
 
     // uv of a point requires vertex uv info => non-static
@@ -214,11 +219,23 @@ struct PointLight {
 };
 
 struct DiffuseAreaLight {
-    int shape_id;
+    int shape_id;  // points to a Sphere or the first Triangle in a mesh
     Vector3 radiance;
 };
 
 using Light = std::variant<PointLight, DiffuseAreaLight>;
+
+// helper functions
+inline int get_material_id(const Shape &shape) {
+    return std::visit([&](const auto &s) { return s.material_id; }, shape);
+}
+inline int get_area_light_id(const Shape &shape) {
+    return std::visit([&](const auto &s) { return s.area_light_id; }, shape);
+}
+inline bool is_light(const Shape &shape) {
+    return get_area_light_id(shape) >= 0;
+}
+
 
 // A scene encapsulating everything above
 struct Scene {

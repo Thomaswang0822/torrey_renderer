@@ -276,7 +276,7 @@ AABB rangeAABB(std::vector<std::shared_ptr<Shape>>& objects,
 
 
 /* ### BVH-version ### */
-bool BVH_isVisible(Vector3& shadingPt, Vector3& lightPos, Scene& scene, BVH_node root) {
+bool BVH_isVisible(Vector3& shadingPt, Vector3& lightPos, Scene& scene, BVH_node& root) {
     double d = distance(shadingPt, lightPos);
     // shot ray from light to shadingPt
     ray lightRay(lightPos, shadingPt, true);
@@ -289,7 +289,7 @@ bool BVH_isVisible(Vector3& shadingPt, Vector3& lightPos, Scene& scene, BVH_node
 
 // HW3 Update: deal with ImageTexture Color & Area light
 Vector3 BVH_DiffuseColor(Scene& scene, Hit_Record& rec, const Color& refl, 
-        BVH_node root, const Shape* hitObj, pcg32_state& rng)
+        BVH_node& root, const Shape* hitObj, pcg32_state& rng)
 {
     Vector3 result = Vector3(0.0, 0.0, 0.0);
 
@@ -298,6 +298,14 @@ Vector3 BVH_DiffuseColor(Scene& scene, Hit_Record& rec, const Color& refl,
     // attributes that are different for each light
     Vector3 l;  // normalized shadingPt to light position
     Real dsq;  // distance squared: shadingPt to light position
+
+    // for Area Light usage
+    Vector3 light_pos;  // sample position
+    Vector3 nx;  // normal at light source (flip toward hitting point for Triangle)
+    Vector3 total_contribution;  // to accumulate contribution from a TriangleMesh
+    int meshCt;  // N
+    Shape* light_tri;  // store our iteration over scene.shapes
+    Triangle* tri;
     for (Light light : scene.lights) {
         // check point light vs area light
         if (PointLight* ptLight = std::get_if<PointLight>(&light)) {
@@ -309,14 +317,56 @@ Vector3 BVH_DiffuseColor(Scene& scene, Hit_Record& rec, const Color& refl,
             }
         } 
         else if (DiffuseAreaLight* areaLight = std::get_if<DiffuseAreaLight>(&light)) {
-            std::cout << "Area light not implemented yet; will implement later" 
-                << std::endl;
-            UNUSED(areaLight);
+            // std::cout << "Area light not implemented yet; will implement later" 
+            //     << std::endl;
+            // UNUSED(areaLight);
 
-            // HW3: Deal with area light
-            // Sample a point on this light
-            Vector3 lightPos = sample_point(hitObj, rng);
+            // ### HW3: Deal with area light ###
+            // Get the actual Object (Shape*) under the hood
+            const Shape* lightObj = &scene.shapes[areaLight->shape_id];
+            Vector3 lightIntensity = areaLight->radiance;  // I in the formula
 
+            // If a sphere, we only sample once
+            if (const Sphere *sph = get_if<Sphere>(lightObj)) {
+                light_pos = sample_point(lightObj, rng);
+                if (!BVH_isVisible(rec.pos, light_pos, scene, root)) {
+                    // QUESTION: shall we try to sample again?
+                    continue;
+                }
+                nx = normalize(light_pos - sph->position);
+                // visibility = 1: add f(x) * 4*PI*R^2
+                result += areaLight_contribution(lightObj, rec, light_pos, Kd, lightIntensity, nx) 
+                    * c_FOURPI * sph->radius * sph->radius;
+            }
+            else if (const Triangle *leading_tri = get_if<Triangle>(lightObj)) {
+                // deal with the entire mesh:
+                // its shape id points to the first triangle in the mesh,
+                // so we look at [shape_id, shape_id + mesh count)
+                assert(leading_tri->area_light_id >= 0 && 
+                    "Area Light points to a mesh, but mesh didn't point back.");
+                total_contribution = {0.0, 0.0, 0.0};  // reset
+                meshCt = scene.meshes[leading_tri->mesh_id].indices.size();
+                for (int local_i=0; local_i<meshCt; ++local_i) {
+                    light_tri = &scene.shapes[areaLight->shape_id + local_i];
+                    light_pos = sample_point(light_tri, rng);
+                    if (!BVH_isVisible(rec.pos, light_pos, scene, root)) {
+                        // QUESTION: shall we try to sample again?
+                        continue;
+                    }
+                    // get geometric (instead of interpolated shading)normal 
+                    // and area from the triangle
+                    tri = get_if<Triangle>(light_tri);
+                    assert(tri && "Some shape is not a Traingle in an area-lighted mesh");
+                    nx = tri->normal;
+                    // flip: want nx and shading normal against, since we use max(−nx · l, 0)
+                    nx = (dot(nx, light_pos - rec.pos) < 0.0)? nx : -nx;  
+                    total_contribution += tri->area * 
+                        areaLight_contribution(light_tri, rec, light_pos, Kd, lightIntensity, nx);
+                }
+                // average
+                // cout << "This area light contributes: " << total_contribution / Real(meshCt) << endl;
+                result += total_contribution /* / Real(meshCt) */;
+            }
         }
         
     }
@@ -324,7 +374,7 @@ Vector3 BVH_DiffuseColor(Scene& scene, Hit_Record& rec, const Color& refl,
 }
 
 
-Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node root, 
+Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node& root, 
         pcg32_state& rng, unsigned int recDepth) {
     // Step 1 BVH UPDATE: detect hit. 
     Hit_Record rec;
@@ -334,6 +384,14 @@ Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node root,
         return scene.background_color;
     }
     assert(hitObj && "Bug: hitObj is a nullptr even when a hit is detected.");
+
+    // HW3 UPDATE: use self-emission if "I am an area light"
+    if (is_light(*hitObj)) {
+        int self_light_id = get_area_light_id(*hitObj);
+        DiffuseAreaLight& self_light = get<DiffuseAreaLight>(scene.lights[self_light_id]);
+        // 2) When a ray hits an area light, return the color of the light directly.
+        return self_light.radiance;
+    }
 
     // Step 2: found hit -> get Material of hitObj
     //   to decide which function to call
@@ -370,7 +428,7 @@ Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node root,
         // Vector3 F * mirror recursion + (1 − F)diffuse,
         return mirror_SchlickFresnel_color(plasticMat->reflectance, rec.u, rec.v, cos_theta) 
             * BVH_PixelColor(scene, rayOut, root, rng, recDepth=recDepth-1) +
-            F * BVH_DiffuseColor(scene, rec, plasticMat->reflectance, root, hitObj, rng);
+            (1.0 - F) * BVH_DiffuseColor(scene, rec, plasticMat->reflectance, root, hitObj, rng);
     }
     else {
         std::cout << "Material not Diffuse or Mirror; will implement later" 
