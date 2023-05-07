@@ -109,16 +109,8 @@ AABB bounding_box(Shape curr_shape) {
             sph->position + sph->radius
         );
     } else if (Triangle *tri = get_if<Triangle>(&curr_shape)) {
-        Vector3 minPt(
-            std::min(std::min(tri->p0.x, tri->p1.x), tri->p2.x),
-            std::min(std::min(tri->p0.y, tri->p1.y), tri->p2.y),
-            std::min(std::min(tri->p0.z, tri->p1.z), tri->p2.z)
-        );
-        Vector3 maxPt(
-            std::max(std::max(tri->p0.x, tri->p1.x), tri->p2.x),
-            std::max(std::max(tri->p0.y, tri->p1.y), tri->p2.y),
-            std::max(std::max(tri->p0.z, tri->p1.z), tri->p2.z)
-        );
+        Vector3 minPt = min(tri->p0, min(tri->p1, tri->p2));
+        Vector3 maxPt = max(tri->p0, max(tri->p1, tri->p2));
         return AABB(minPt, maxPt);
     } else {
         assert(false);

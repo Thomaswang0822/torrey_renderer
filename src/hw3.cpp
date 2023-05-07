@@ -68,7 +68,7 @@ Image3 hw_3_1(const std::vector<std::string> &params) {
                     localRay = cam.get_ray(u, v);
                     
                     // CHANGE: call computePixelColor() which deal with hit & no-hit
-                    pixel_color += BVH_PixelColor(myScene, localRay, root);
+                    pixel_color += BVH_PixelColor(myScene, localRay, root, rng);
                 }
                 // average and write color
                 img(x, img.height-1 - y) = pixel_color * inv_spp;

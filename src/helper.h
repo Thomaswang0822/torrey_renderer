@@ -34,5 +34,11 @@ void checkRaySceneHit(ray localRay,
                       Hit_Record& rec,
                       Shape*& hitObj);
 
-
-
+/**
+ * @brief Given a shape, uniformly sample a point on the surface
+ * 
+ * @param hitObj pointer to the Shape, can be either Sphere or Triangle
+ * @param rng 
+ * @return Vector3 
+ */
+Vector3 sample_point(const Shape* hitObj, pcg32_state& rng);

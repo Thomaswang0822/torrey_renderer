@@ -287,8 +287,9 @@ bool BVH_isVisible(Vector3& shadingPt, Vector3& lightPos, Scene& scene, BVH_node
     return !root.hit(lightRay, EPSILON, (1-EPSILON) * d, scene, rec, hitObj);
 }
 
-// HW3 Update: deal with ImageTexture Color
-Vector3 BVH_DiffuseColor(Scene& scene, Hit_Record& rec, const Color& refl, BVH_node root)
+// HW3 Update: deal with ImageTexture Color & Area light
+Vector3 BVH_DiffuseColor(Scene& scene, Hit_Record& rec, const Color& refl, 
+        BVH_node root, const Shape* hitObj, pcg32_state& rng)
 {
     Vector3 result = Vector3(0.0, 0.0, 0.0);
 
@@ -311,6 +312,11 @@ Vector3 BVH_DiffuseColor(Scene& scene, Hit_Record& rec, const Color& refl, BVH_n
             std::cout << "Area light not implemented yet; will implement later" 
                 << std::endl;
             UNUSED(areaLight);
+
+            // HW3: Deal with area light
+            // Sample a point on this light
+            Vector3 lightPos = sample_point(hitObj, rng);
+
         }
         
     }
@@ -318,7 +324,8 @@ Vector3 BVH_DiffuseColor(Scene& scene, Hit_Record& rec, const Color& refl, BVH_n
 }
 
 
-Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node root, unsigned int recDepth) {
+Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node root, 
+        pcg32_state& rng, unsigned int recDepth) {
     // Step 1 BVH UPDATE: detect hit. 
     Hit_Record rec;
     Shape* hitObj = nullptr;
@@ -335,7 +342,7 @@ Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node root, unsigned int 
     // Step 3 BVH UPDATE: act according to Material (instead of Shape)
     if (Diffuse* diffuseMat = std::get_if<Diffuse>(&currMaterial)) {
         // no recursion, compute diffuse color
-        return BVH_DiffuseColor(scene, rec, diffuseMat->reflectance, root);
+        return BVH_DiffuseColor(scene, rec, diffuseMat->reflectance, root, hitObj, rng);
     }
     else if (Mirror* mirrorMat = std::get_if<Mirror>(&currMaterial)) {
         // mirror refect ray and do recursion
@@ -351,7 +358,7 @@ Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node root, unsigned int 
         double cos_theta = dot(rec.normal, rayOut.direction());
         // Vector3 F * mirror recursion
         return mirror_SchlickFresnel_color(mirrorMat->reflectance, rec.u, rec.v, cos_theta) 
-            * BVH_PixelColor(scene, rayOut, root, recDepth=recDepth-1);
+            * BVH_PixelColor(scene, rayOut, root, rng, recDepth=recDepth-1);
     } 
     else if (Plastic* plasticMat = std::get_if<Plastic>(&currMaterial)) {
         ray rayOut = mirror_ray(localRay, rec.normal, rec.pos);
@@ -362,8 +369,8 @@ Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node root, unsigned int 
 
         // Vector3 F * mirror recursion + (1 − F)diffuse,
         return mirror_SchlickFresnel_color(plasticMat->reflectance, rec.u, rec.v, cos_theta) 
-            * BVH_PixelColor(scene, rayOut, root, recDepth=recDepth-1) +
-            F * BVH_DiffuseColor(scene, rec, plasticMat->reflectance, root);
+            * BVH_PixelColor(scene, rayOut, root, rng, recDepth=recDepth-1) +
+            F * BVH_DiffuseColor(scene, rec, plasticMat->reflectance, root, hitObj, rng);
     }
     else {
         std::cout << "Material not Diffuse or Mirror; will implement later" 

@@ -134,3 +134,34 @@ void checkRaySceneHit(ray localRay,
         checkRayShapeHit(localRay, curr_shape, rec, hitObj);
     }
 }
+
+
+Vector3 sample_point(const Shape* hitObj, pcg32_state& rng) {
+    Real u1 = next_pcg32_real<Real>(rng);
+    Real u2 = next_pcg32_real<Real>(rng);
+    if (const Sphere *sph = std::get_if<Sphere>(hitObj)) {
+        // sample from sphere: 
+        // elevation angle theta; azumith angle phi
+        double theta = acos(1.0 - 2 * u1);
+        double phi = c_TWOPI * u2;
+        // convert sphercial coor to xyz position
+        // c + r (sin θ cos φ,sin θ sin φ, cos θ).
+        return Vector3(
+            sin(theta) * cos(phi),
+            sin(theta) * sin(phi),
+            cos(theta)
+        ) * sph->radius + sph->position;
+
+    } else if (const Triangle *tri = std::get_if<Triangle>(hitObj)) {
+        Real b1 = 1 - sqrt(u1);
+        Real b2 = u2 * sqrt(u1);
+        // use baryC to get position
+        return Vector3(
+            (1-b1-b2) * tri->p0 +
+            b1 * tri->p1 + 
+            b2 * tri->p2
+        );
+    } else {
+        assert(false);
+    }
+}

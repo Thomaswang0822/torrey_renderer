@@ -173,16 +173,8 @@ struct Triangle : public ShapeBase{
         // material id
         material_id = mesh->material_id;
         // create bbox during instantiation
-        Vector3 minPt(
-            std::min(std::min(p0.x, p1.x), p2.x),
-            std::min(std::min(p0.y, p1.y), p2.y),
-            std::min(std::min(p0.z, p1.z), p2.z)
-        );
-        Vector3 maxPt(
-            std::max(std::max(p0.x, p1.x), p2.x),
-            std::max(std::max(p0.y, p1.y), p2.y),
-            std::max(std::max(p0.z, p1.z), p2.z)
-        );
+        Vector3 minPt = min(p0, min(p1, p2));
+        Vector3 maxPt = max(p0, max(p1, p2));
         box = AABB(minPt, maxPt);
         // deal with uvs
         if (mesh->uvs.size() > 0) {
