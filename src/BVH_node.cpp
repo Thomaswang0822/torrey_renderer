@@ -426,8 +426,8 @@ Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node& root,
         double F = compute_SchlickFresnel(plasticMat->get_F0(), cos_theta);
 
         // Vector3 F * mirror recursion + (1 − F)diffuse,
-        return mirror_SchlickFresnel_color(plasticMat->reflectance, rec.u, rec.v, cos_theta) 
-            * BVH_PixelColor(scene, rayOut, root, rng, recDepth=recDepth-1) +
+        return /* mirror_SchlickFresnel_color(plasticMat->reflectance, rec.u, rec.v, cos_theta) */ 
+            F * BVH_PixelColor(scene, rayOut, root, rng, recDepth=recDepth-1) +
             (1.0 - F) * BVH_DiffuseColor(scene, rec, plasticMat->reflectance, root, hitObj, rng);
     }
     else {
