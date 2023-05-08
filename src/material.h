@@ -37,8 +37,8 @@ struct ImageTexture {
         }
         
         // convert
-        double x = (img3.width - 1) * modulo(uscale * u + uoffset, 1.0) - 1e-9;
-        double y = (img3.height - 1) * modulo(vscale * v + voffset, 1.0) - 1e-9;
+        double x = img3.width  * modulo(uscale * u + uoffset, 1.0) - 1e-9;
+        double y = img3.height * modulo(vscale * v + voffset, 1.0) - 1e-9;
 
         // obtain x1 y1 x2 y2
         int x1 = static_cast<int>(x); int y1 = static_cast<int>(y);
@@ -49,7 +49,11 @@ struct ImageTexture {
         double w12 = (x2-x) * (y-y1);
         double w21 = (x-x1) * (y2-y);
         double w22 = (x-x1) * (y-y1);
-        return w11 * img3(x1, y1) + w12 * img3(x1, y2) + w21 * img3(x2, y1) + w22 * img3(x2, y2);
+        // wrap around
+        return  w11 * img3(x1, y1) + 
+                w12 * img3(x1, y2%img3.height) + 
+                w21 * img3(x2%img3.width, y1) + 
+                w22 * img3(x2%img3.width, y2%img3.height);
 
     }
 };
