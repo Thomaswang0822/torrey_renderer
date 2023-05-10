@@ -43,18 +43,26 @@ Scene::Scene(const ParsedScene &scene) :
             shape_id_map.push_back(currIdx);
             currIdx++;
         } else if (auto *parsed_mesh = get_if<ParsedTriangleMesh>(&parsed_shape)) {
-            meshes[tri_mesh_count] = TriangleMesh{
-                {parsed_mesh->material_id, parsed_mesh->area_light_id},
-                parsed_mesh->positions, 
-                parsed_mesh->indices,
-                parsed_mesh->normals, 
-                parsed_mesh->uvs
-            };
+            meshes[tri_mesh_count] = TriangleMesh(*parsed_mesh);
             // Extract all the individual triangles
-            int nTri = (int)parsed_mesh->indices.size();
+            int nTri = meshes[tri_mesh_count].size;
+            assert (nTri > 0);
+            Real totalArea = 0.0;
+            vector<Real> cdf(nTri+1, 0.0);  // has an extra 0 at the front
             for (int face_index = 0; face_index < nTri; face_index++) {
-                shapes.push_back(Triangle{face_index, &meshes[tri_mesh_count], tri_mesh_count});
+                Triangle currTri(face_index, &meshes[tri_mesh_count], tri_mesh_count);
+                // cout << "area of this triangle: " << currTri.area << endl;
+                totalArea += currTri.area;
+                cdf[face_index+1] = totalArea;
+                shapes.push_back(currTri);
             }
+            // normalize the accumulated area and write to the mesh
+            std::transform(cdf.begin(), cdf.end(), cdf.begin(), 
+                std::bind1st(std::multiplies<double>(), 1.0 / totalArea)
+            );
+            cdf.back() = 1.0;  // avoid 0-probability numerical issue
+            meshes[tri_mesh_count].areaCDF = cdf;
+
             tri_mesh_count++;
             shape_id_map.push_back(currIdx);
             currIdx += nTri;

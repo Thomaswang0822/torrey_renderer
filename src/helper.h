@@ -44,7 +44,7 @@ void checkRaySceneHit(ray localRay,
 Vector3 sample_point(const Shape* lightObj, pcg32_state& rng);
 
 /**
- * @brief Given a area-lighted primitive object, return the UNSCALED RGB light
+ * @brief Given a area-lighted *primitive* object, return the UNSCALED RGB light
  * contribution of it.
  * 
  * @note for a TriangleMesh area light, each Trianlge is unpacked outside the function,

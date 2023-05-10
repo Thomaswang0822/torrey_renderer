@@ -20,10 +20,10 @@ Image3 hw_3_1(const std::vector<std::string> &params) {
     // construct BVH tree
     pcg32_state rng_BVH = init_pcg32();
     // DEBUG NOTE: see BVH_node.h
-    std::vector<Shape>& shapes = myScene.shapes;
+    // std::vector<Shape>& shapes = myScene.shapes;
     std::vector<std::shared_ptr<Shape>> shape_ptrs;
-    for (size_t i = 0; i < shapes.size(); ++i) {
-        std::shared_ptr<Shape> shape_ptr = std::make_shared<Shape>(shapes[i]);
+    for (size_t i = 0; i < myScene.shapes.size(); ++i) {
+        std::shared_ptr<Shape> shape_ptr = std::make_shared<Shape>(myScene.shapes[i]);
         shape_ptrs.push_back(shape_ptr);
     }
     // manually construct BVH for each mesh

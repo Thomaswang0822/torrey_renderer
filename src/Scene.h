@@ -136,6 +136,31 @@ struct TriangleMesh : public ShapeBase {
     std::vector<Vector3i> indices;
     std::vector<Vector3> normals;
     std::vector<Vector2> uvs;
+    int size;
+    Real totalArea;
+    std::vector<Real> areaCDF;
+
+    // Give it a constructor in order to sample area light
+    TriangleMesh() {};
+    TriangleMesh(const ParsedTriangleMesh& pMesh) :
+        ShapeBase{pMesh.material_id, pMesh.area_light_id},
+        positions(pMesh.positions), indices(pMesh.indices), 
+        normals(pMesh.normals), uvs(pMesh.uvs),
+        size((int)pMesh.indices.size()),
+        areaCDF(pMesh.indices.size() + 1, 0.0)
+    {
+        // areaCDF will be populated in Scene constructor after
+        // all Triangles are created
+    }
+
+    // given a Unif(0,1), return it's corresponding sample triangle
+    int which_tri(double rd) {
+        // upper_bound because we want
+        // [0, 0.4, 0.8, 1.0] searching 0.4 should gives 1
+        auto it = std::upper_bound(areaCDF.begin(), areaCDF.end(), rd);
+        std::size_t index = std::distance(areaCDF.begin(), it - 1);
+        return static_cast<int>(index);
+    }
 };
 
 struct Triangle : public ShapeBase{

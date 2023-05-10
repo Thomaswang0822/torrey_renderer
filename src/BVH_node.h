@@ -116,3 +116,9 @@ Vector3 BVH_DiffuseColor(Scene& scene, Hit_Record& rec, const Color& refl,
                         BVH_node& root, const Shape* hitObj, pcg32_state& rng);
 Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node& root, 
                         pcg32_state& rng, unsigned int recDepth=MAX_DEPTH);
+
+Vector3 meshLight_total_contribution(Scene& scene, Hit_Record& rec, BVH_node& root,
+            int mesh_id, int shape_id,
+            const Vector3& Kd, const Vector3& I,
+            pcg32_state& rng, 
+            bool sampleAll=true, int maxSample=100);
