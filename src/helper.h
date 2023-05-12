@@ -57,6 +57,39 @@ struct Basis {
     }
 };
 
+/**
+ * @brief Spherical triangle on a unit sphere
+ * 
+ */
+struct SphTriangle {
+    Vector3 A,B,C;  // vertices
+    double area;
+    double alpha, beta, gamma;  // internal angles
+    double a,b,c;  // edge lengths
+
+    SphTriangle(const Triangle* tri, Vector3 center) {
+        Vector3 oA = normalize(tri->p0 - center);
+        Vector3 oB = normalize(tri->p0 - center);
+        Vector3 oC = normalize(tri->p0 - center);
+        // Find vertices
+        A = center + oA;
+        B = center + oB;
+        C = center + oC;
+
+        // Find edge lengths: they are represented by 
+        // "by the lines connecting the vertices 
+        // to the center of the sphere."
+        a = acos(dot(oB, oC));
+        b = acos(dot(oA, oC));
+        c = acos(dot(oA, oB));
+
+        // TODO: Find internal angles
+
+        // Find area
+        area = alpha + beta + gamma - c_PI;
+    }
+};
+
 
 /**
  * @brief Given a Trianlge pointer, uniformly sample a point on the surface
@@ -69,13 +102,19 @@ Vector3 Triangle_sample(const Triangle* tri, pcg32_state& rng);
 
 
 /**
- * @brief Given a Sphere pointer, uniformly sample a point on the entire surface
+ * @brief Given a Sphere pointer, uniformly sample a point on the entire surface.
+ * 
+ * @note support stratified sampling of equally spaced azumith angle. i.e. an 
+ *   orange sphere will be divided into `ct` slices and we sample one point on 
+ *   each. This function will be called `ct` times.
  * 
  * @param sph 
  * @param rng
+ * @param idx the index of the "orange slice"
+ * @param ct stratified sample count, default to 1 (no stratified sample)
  * @return Vector3 
  */
-Vector3 Sphere_sample(const Sphere* sph, pcg32_state& rng);
+Vector3 Sphere_sample(const Sphere* sph, pcg32_state& rng, int idx=0, int ct=1);
 
 /**
  * @brief Given a Sphere pointer, sample a point using cone sampling

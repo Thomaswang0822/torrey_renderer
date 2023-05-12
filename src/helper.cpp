@@ -151,12 +151,13 @@ Vector3 Triangle_sample(const Triangle* tri, pcg32_state& rng) {
 }
 
 
-Vector3 Sphere_sample(const Sphere* sph, pcg32_state& rng) {
+Vector3 Sphere_sample(const Sphere* sph, pcg32_state& rng, int idx, int ct) {
     Real u1 = next_pcg32_real<Real>(rng);
     Real u2 = next_pcg32_real<Real>(rng);
     // elevation angle theta; azumith angle phi
     double theta = acos(1.0 - 2 * u1);
-    double phi = c_TWOPI * u2;
+    // for stratified sample: offset to the particular "orange slice".
+    double phi = c_TWOPI * (u2 + Real(idx)/ ct);
 
     // convert sphercial coor to xyz position
     // c + r (sin θ cos φ,sin θ sin φ, cos θ).

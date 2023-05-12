@@ -325,29 +325,8 @@ Vector3 BVH_DiffuseColor(Scene& scene, Hit_Record& rec, const Color& refl,
 
             // If a sphere, we only sample once
             if (const Sphere *sph = get_if<Sphere>(lightObj)) {
-                light_pos = Sphere_sample(sph, rng);
-                
-                // uncomment following block if using cone sampling
-                #pragma region ConeSampling
-                /* // This will cause bug if dist(hit_point, center) < R
-                Vector3 cp = rec.pos - sph->position;
-                assert(length(cp) > sph->radius
-                    && "hit position is inside a sphere");
-                Real theta_max = acos(
-                    sph->radius / 
-                    distance(rec.pos, sph->position)
-                );
-                light_pos = Sphere_sample_cone(sph, rng, theta_max, normalize(cp)); */
-                #pragma endregion ConeSampling
-
-                if (!BVH_isVisible(rec.pos, light_pos, scene, root)) {
-                    // QUESTION: shall we try to sample again?
-                    continue;
-                }
-                nx = normalize(light_pos - sph->position);
-                // visibility = 1: add f(x) * 4*PI*R^2
-                result += areaLight_contribution(lightObj, rec, light_pos, Kd, lightIntensity, nx) 
-                    * c_FOURPI * sph->radius * sph->radius;
+                UNUSED(sph);
+                result += sphereLight_contribution(scene, rec, root, lightObj, Kd, lightIntensity, rng, 6);
             }
             else if (const Triangle *leading_tri = get_if<Triangle>(lightObj)) {
                 // deal with the entire mesh:
@@ -485,4 +464,44 @@ Vector3 meshLight_total_contribution(Scene& scene, Hit_Record& rec, BVH_node& ro
     }
     // See function docstring @note
     return all? total_contribution : total_contribution / Real(n_sample);
+}
+
+
+Vector3 sphereLight_contribution(Scene& scene, Hit_Record& rec, BVH_node& root,
+            const Shape* lightObj, 
+            const Vector3& Kd, const Vector3& I,
+            pcg32_state& rng, 
+            int ct)
+{
+    Vector3 total(0.0, 0.0, 0.0);  // return value
+    Vector3 light_pos;
+    Vector3 nx;  // normal at light source
+    const Sphere* sph = get_if<Sphere>(lightObj);
+    assert(sph && "Sampling on sphere but Shape lightObj is not a sphere");
+
+    for (int idx=0; idx<ct; idx++) {
+        light_pos = Sphere_sample(sph, rng, idx, ct);
+
+        // uncomment following block if using cone sampling
+        #pragma region ConeSampling
+        /* // This will cause bug if dist(hit_point, center) < R
+        Vector3 cp = rec.pos - sph->position;
+        assert(length(cp) > sph->radius
+            && "hit position is inside a sphere");
+        Real theta_max = acos(
+            sph->radius / 
+            distance(rec.pos, sph->position)
+        );
+        light_pos = Sphere_sample_cone(sph, rng, theta_max, normalize(cp)); */
+        #pragma endregion ConeSampling
+
+        if (!BVH_isVisible(rec.pos, light_pos, scene, root)) {
+            continue;
+        }
+        nx = normalize(light_pos - sph->position);
+        total += areaLight_contribution(lightObj, rec, light_pos, Kd, I, nx) 
+                    * c_FOURPI * sph->radius * sph->radius;  
+    }
+
+    return total / Real(ct);  // average over all "orange slice" samples
 }

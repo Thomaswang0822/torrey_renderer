@@ -142,3 +142,11 @@ Vector3 meshLight_total_contribution(Scene& scene, Hit_Record& rec, BVH_node& ro
             const Vector3& Kd, const Vector3& I,
             pcg32_state& rng, 
             bool sampleAll=true, int maxSample=100);
+
+
+
+Vector3 sphereLight_contribution(Scene& scene, Hit_Record& rec, BVH_node& root,
+            const Shape* lightObj, 
+            const Vector3& Kd, const Vector3& I,
+            pcg32_state& rng, 
+            int ct=1);
