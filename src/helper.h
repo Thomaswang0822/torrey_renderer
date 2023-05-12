@@ -34,14 +34,70 @@ void checkRaySceneHit(ray localRay,
                       Hit_Record& rec,
                       Shape*& hitObj);
 
+struct Basis {
+    Vector3 u, v_up, w;
+
+    /**
+     * @brief Given a normalized vector, use it as up vector
+     *   and generate a orthonormal basis
+     * 
+     * @param v_up 
+     * @return Basis 
+     */
+    static Basis orthonormal_basis(Vector3 v_up) {
+        // pick a random vector
+        Vector3 some(1.0, 0.0, 0.0);
+        if (abs(dot(v_up, some)) < 1e-6) {
+            // may have numerical issue when doing cross product
+            some = {0.0, 0.0, 1.0};
+        }
+        Vector3 u = normalize(cross(v_up, some));
+        Vector3 w = cross(u, v_up);
+        return Basis{u, v_up, w};
+    }
+};
+
+
 /**
- * @brief Given a shape, uniformly sample a point on the surface
+ * @brief Given a Trianlge pointer, uniformly sample a point on the surface
  * 
- * @param lightObj pointer to the area-lighted Shape, can be either Sphere or Triangle
+ * @param tri 
  * @param rng 
  * @return Vector3 
  */
-Vector3 sample_point(const Shape* lightObj, pcg32_state& rng);
+Vector3 Triangle_sample(const Triangle* tri, pcg32_state& rng);
+
+
+/**
+ * @brief Given a Sphere pointer, uniformly sample a point on the entire surface
+ * 
+ * @param sph 
+ * @param rng
+ * @return Vector3 
+ */
+Vector3 Sphere_sample(const Sphere* sph, pcg32_state& rng);
+
+/**
+ * @brief Given a Sphere pointer, sample a point using cone sampling
+ * 
+ * @note unlike PBRT and RTRYL, which uses the thin angle between 
+ *   Vector(hit_point, sphere light center) and 
+ *   Vector(hit_point, tangent point on the sphere), my theta_max is described above.
+ *   This difference arises from that they use "sampling direction at shading point",
+ *   we use "sampling a point from the area light", the Sphere.
+ * 
+ * @param sph 
+ * @param rng 
+ * @param theta_max the angle between Vector(hit_point, sphere light center)
+ *   and Vector(sphere light radius)
+ * @param cp NORMALIZED vector from sphere center to shading point; used as 
+ *   up vector for the "tilted" sphere cap region.
+ * @return Vector3 
+ */
+Vector3 Sphere_sample_cone(const Sphere* sph, pcg32_state& rng, 
+                const Real& theta_max, const Vector3& cp);
+
+
 
 /**
  * @brief Given a area-lighted *primitive* object, return the UNSCALED RGB light

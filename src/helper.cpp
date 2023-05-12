@@ -137,34 +137,62 @@ void checkRaySceneHit(ray localRay,
 }
 
 
-Vector3 sample_point(const Shape* lightObj, pcg32_state& rng) {
+Vector3 Triangle_sample(const Triangle* tri, pcg32_state& rng) {
     Real u1 = next_pcg32_real<Real>(rng);
     Real u2 = next_pcg32_real<Real>(rng);
-    if (const Sphere *sph = get_if<Sphere>(lightObj)) {
-        // sample from sphere: 
-        // elevation angle theta; azumith angle phi
-        double theta = acos(1.0 - 2 * u1);
-        double phi = c_TWOPI * u2;
-        // convert sphercial coor to xyz position
-        // c + r (sin θ cos φ,sin θ sin φ, cos θ).
-        return Vector3(
-            sin(theta) * cos(phi),
-            sin(theta) * sin(phi),
-            cos(theta)
-        ) * sph->radius + sph->position;
+    Real b1 = 1 - sqrt(u1);
+    Real b2 = u2 * sqrt(u1);
+    // use baryC to get position
+    return Vector3(
+        (1-b1-b2) * tri->p0 +
+        b1 * tri->p1 + 
+        b2 * tri->p2
+    );
+}
 
-    } else if (const Triangle *tri = get_if<Triangle>(lightObj)) {
-        Real b1 = 1 - sqrt(u1);
-        Real b2 = u2 * sqrt(u1);
-        // use baryC to get position
-        return Vector3(
-            (1-b1-b2) * tri->p0 +
-            b1 * tri->p1 + 
-            b2 * tri->p2
-        );
-    } else {
-        assert(false);
-    }
+
+Vector3 Sphere_sample(const Sphere* sph, pcg32_state& rng) {
+    Real u1 = next_pcg32_real<Real>(rng);
+    Real u2 = next_pcg32_real<Real>(rng);
+    // elevation angle theta; azumith angle phi
+    double theta = acos(1.0 - 2 * u1);
+    double phi = c_TWOPI * u2;
+
+    // convert sphercial coor to xyz position
+    // c + r (sin θ cos φ,sin θ sin φ, cos θ).
+    return Vector3(
+        sin(theta) * cos(phi),
+        sin(theta) * sin(phi),
+        cos(theta)
+    ) * sph->radius + sph->position;
+}
+
+
+Vector3 Sphere_sample_cone(const Sphere* sph, pcg32_state& rng, 
+                const Real& theta_max, const Vector3& cp) {
+    assert(theta_max > 0.0 && theta_max < c_PIOVERTWO 
+        && "theta max should be between 0 and 90 degrees.");
+    Real u1 = next_pcg32_real<Real>(rng);
+    Real u2 = next_pcg32_real<Real>(rng);
+    // elevation angle theta; azumith angle phi
+    double theta = acos(1.0 - u1 * (1.0 - cos(theta_max)));
+    double phi = c_TWOPI * u2;
+
+    // This is the point under the Sphere local space
+    // i.e. center at 0, up vector is (0,1,0)
+    Vector3 local_p = Vector3(
+        sin(theta) * cos(phi),
+        sin(theta) * sin(phi),
+        cos(theta)
+    ) * sph->radius;
+    
+    // create the orthonormal basis with cp as up vector
+    Basis world_basis = Basis::orthonormal_basis(cp);
+    // plug in formula; turn into world coordinate
+    return sph->position + 
+        local_p.x * world_basis.u +
+        local_p.y * world_basis.v_up +
+        local_p.z * world_basis.w;
 }
 
 

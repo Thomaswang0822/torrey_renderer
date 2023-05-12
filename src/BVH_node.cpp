@@ -325,7 +325,21 @@ Vector3 BVH_DiffuseColor(Scene& scene, Hit_Record& rec, const Color& refl,
 
             // If a sphere, we only sample once
             if (const Sphere *sph = get_if<Sphere>(lightObj)) {
-                light_pos = sample_point(lightObj, rng);
+                light_pos = Sphere_sample(sph, rng);
+                
+                // uncomment following block if using cone sampling
+                #pragma region ConeSampling
+                /* // This will cause bug if dist(hit_point, center) < R
+                Vector3 cp = rec.pos - sph->position;
+                assert(length(cp) > sph->radius
+                    && "hit position is inside a sphere");
+                Real theta_max = acos(
+                    sph->radius / 
+                    distance(rec.pos, sph->position)
+                );
+                light_pos = Sphere_sample_cone(sph, rng, theta_max, normalize(cp)); */
+                #pragma endregion ConeSampling
+
                 if (!BVH_isVisible(rec.pos, light_pos, scene, root)) {
                     // QUESTION: shall we try to sample again?
                     continue;
@@ -451,8 +465,10 @@ Vector3 meshLight_total_contribution(Scene& scene, Hit_Record& rec, BVH_node& ro
             local_idx = scene.meshes[mesh_id].which_tri(next_pcg32_real<double>(rng));
             light_tri = &scene.shapes[shape_id + local_idx];
         }
+        tri = get_if<Triangle>(light_tri);
+        assert(tri && "Some shape is not a Traingle in an area-lighted mesh");
         // 2. pick a point from the triangle
-        light_pos = sample_point(light_tri, rng);
+        light_pos = Triangle_sample(tri, rng);
         // 3. visibility check        
         if (!BVH_isVisible(rec.pos, light_pos, scene, root)) {
             // QUESTION: shall we try to sample again?
@@ -460,8 +476,6 @@ Vector3 meshLight_total_contribution(Scene& scene, Hit_Record& rec, BVH_node& ro
         }
         // 4. get geometric (instead of interpolated shading)normal 
         // and area from the triangle
-        tri = get_if<Triangle>(light_tri);
-        assert(tri && "Some shape is not a Traingle in an area-lighted mesh");
         nx = tri->normal;
         // flip: want nx and shading normal against, since we use max(−nx · l, 0)
         nx = (dot(nx, light_pos - rec.pos) < 0.0)? nx : -nx;
