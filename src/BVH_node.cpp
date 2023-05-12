@@ -346,7 +346,7 @@ Vector3 BVH_DiffuseColor(Scene& scene, Hit_Record& rec, const Color& refl,
                     Kd, lightIntensity, rng, false, 100
                 );
                 // average
-                // cout << "This area light contributes: " << total_contribution / Real(meshCt) << endl;
+                // cout << "This area light contributes: " << total_contribution << endl;
                 result += total_contribution /* / Real(meshCt) */;
             }
         }
@@ -437,33 +437,38 @@ Vector3 meshLight_total_contribution(Scene& scene, Hit_Record& rec, BVH_node& ro
     int local_idx;  // which tri to choose if sample the mesh
 
     int meshCt = scene.meshes[mesh_id].size;
+    Real meshArea = scene.meshes[mesh_id].totalArea;
+    bool all = sampleAll || meshCt < maxSample;  // what really should be done
     // sample some (100) lights only if flag set and > 100 lights present
-    int n_sample = (sampleAll || meshCt < maxSample)? meshCt : maxSample;
+    int n_sample = all? meshCt : maxSample;
     for (int local_i=0; local_i<n_sample; ++local_i) {
-        if (sampleAll || meshCt < maxSample) {
+        // 1. pick a triangle
+        if (all) {
             // look at each Triangle sequentially
             light_tri = &scene.shapes[shape_id + local_i];
         } else {
-            // choose certain triangles from the cdf
+            // sample certain triangle from the cdf
             local_idx = scene.meshes[mesh_id].which_tri(next_pcg32_real<double>(rng));
             light_tri = &scene.shapes[shape_id + local_idx];
         }
-        
+        // 2. pick a point from the triangle
         light_pos = sample_point(light_tri, rng);
+        // 3. visibility check        
         if (!BVH_isVisible(rec.pos, light_pos, scene, root)) {
             // QUESTION: shall we try to sample again?
             continue;
         }
-        // get geometric (instead of interpolated shading)normal 
+        // 4. get geometric (instead of interpolated shading)normal 
         // and area from the triangle
         tri = get_if<Triangle>(light_tri);
         assert(tri && "Some shape is not a Traingle in an area-lighted mesh");
         nx = tri->normal;
         // flip: want nx and shading normal against, since we use max(−nx · l, 0)
-        nx = (dot(nx, light_pos - rec.pos) < 0.0)? nx : -nx;  
-        total_contribution += tri->area * 
+        nx = (dot(nx, light_pos - rec.pos) < 0.0)? nx : -nx;
+        // 5. accumulate
+        total_contribution += (all? tri->area : meshArea) * 
             areaLight_contribution(light_tri, rec, light_pos, Kd, I, nx);
     }
-
-    return total_contribution;
+    // See function docstring @note
+    return all? total_contribution : total_contribution / Real(n_sample);
 }
