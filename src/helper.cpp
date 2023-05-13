@@ -208,13 +208,13 @@ Vector3 Sphere_sample(const Sphere* sph, pcg32_state& rng, int idx, int ct) {
 
 
 Vector3 Sphere_sample_cone(const Sphere* sph, pcg32_state& rng, 
-                const Real& theta_max, const Vector3& cp) {
-    assert(theta_max > 0.0 && theta_max < c_PIOVERTWO 
-        && "theta max should be between 0 and 90 degrees.");
+                const Real& cos_theta_max, const Vector3& cp) {
+    assert(cos_theta_max > 0.0 && cos_theta_max < 1.0 
+        && "cos(theta max) should be between 0 and 1.");
     Real u1 = next_pcg32_real<Real>(rng);
     Real u2 = next_pcg32_real<Real>(rng);
     // elevation angle theta; azumith angle phi
-    double theta = acos(1.0 - u1 * (1.0 - cos(theta_max)));
+    double theta = acos(1.0 - u1 * (1.0 - cos_theta_max));
     double phi = c_TWOPI * u2;
 
     // This is the point under the Sphere local space

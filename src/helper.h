@@ -135,14 +135,14 @@ Vector3 Sphere_sample(const Sphere* sph, pcg32_state& rng, int idx=0, int ct=1);
  * 
  * @param sph 
  * @param rng 
- * @param theta_max the angle between Vector(hit_point, sphere light center)
+ * @param cos_theta_max the angle taking cosine between Vector(hit_point, sphere light center)
  *   and Vector(sphere light radius)
  * @param cp NORMALIZED vector from sphere center to shading point; used as 
  *   up vector for the "tilted" sphere cap region.
  * @return Vector3 
  */
 Vector3 Sphere_sample_cone(const Sphere* sph, pcg32_state& rng, 
-                const Real& theta_max, const Vector3& cp);
+                const Real& cos_theta_max, const Vector3& cp);
 
 
 
