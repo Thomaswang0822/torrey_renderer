@@ -489,15 +489,9 @@ Vector3 sphereLight_contribution(Scene& scene, Hit_Record& rec, BVH_node& root,
     Vector3 nx;  // normal at light source
     const Sphere* sph = get_if<Sphere>(lightObj);
     assert(sph && "Sampling on sphere but Shape lightObj is not a sphere");
-    /* when we don't do cone sampling, this is 1
-    1.0 / <spherical cap proportion of the entire sphere> 
-    = 2 / (1-cos(theta_max))
-    */
-    double sph_cap_prop_inv;  
 
     for (int idx=0; idx<ct; idx++) {
         // light_pos = Sphere_sample(sph, rng, idx, ct);
-        sph_cap_prop_inv = 1.0;
 
         // uncomment following block if using cone sampling
         #pragma region ConeSampling
@@ -506,7 +500,6 @@ Vector3 sphereLight_contribution(Scene& scene, Hit_Record& rec, BVH_node& root,
         assert(length(cp) > sph->radius
             && "hit position is inside a sphere");
         Real cos_theta_max = sph->radius / distance(rec.pos, sph->position);
-        sph_cap_prop_inv = 2.0 / (1.0 - cos_theta_max);
         light_pos = Sphere_sample_cone(sph, rng, cos_theta_max, normalize(cp));
         #pragma endregion ConeSampling
 
@@ -515,8 +508,7 @@ Vector3 sphereLight_contribution(Scene& scene, Hit_Record& rec, BVH_node& root,
         }
         nx = normalize(light_pos - sph->position);
         total += areaLight_contribution(lightObj, rec, light_pos, Kd, I, nx) 
-                    * c_FOURPI * sph->radius * sph->radius  // pick sphere
-                    * sph_cap_prop_inv;  // pick cap from sphere
+                    * c_FOURPI * sph->radius * sph->radius;  // pick sphere
     }
 
     return total / Real(ct);  // average over all "orange slice" samples
