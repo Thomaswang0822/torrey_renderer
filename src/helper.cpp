@@ -137,17 +137,55 @@ void checkRaySceneHit(ray localRay,
 }
 
 
-Vector3 Triangle_sample(const Triangle* tri, pcg32_state& rng) {
+Vector3 Triangle_sample(const Triangle* tri, pcg32_state& rng, int which_part) {
     Real u1 = next_pcg32_real<Real>(rng);
     Real u2 = next_pcg32_real<Real>(rng);
     Real b1 = 1 - sqrt(u1);
     Real b2 = u2 * sqrt(u1);
-    // use baryC to get position
-    return Vector3(
-        (1-b1-b2) * tri->p0 +
-        b1 * tri->p1 + 
-        b2 * tri->p2
-    );
+    if (which_part == -1) {    
+        // use baryC to get position
+        return Vector3(
+            (1-b1-b2) * tri->p0 +
+            b1 * tri->p1 + 
+            b2 * tri->p2
+        );
+    } else {
+        Vector3 p0, p1, p2;  // vertex position of sub-Triangle we pick
+        switch (which_part)
+        {
+        case 0:
+            p0 = tri->p0;
+            p1 = 0.5 * (p0 + tri->p1);
+            p2 = 0.5 * (p0 + tri->p2);
+            break;
+        case 1:
+            p1 = tri->p1;
+            p0 = 0.5 * (p1 + tri->p0);
+            p2 = 0.5 * (p1 + tri->p2);
+            break;
+        case 2:
+            p2 = tri->p2;
+            p0 = 0.5 * (p2 + tri->p0);
+            p1 = 0.5 * (p2 + tri->p1);
+            break;
+        case 3:
+            // all 3 are mid points, vertex order is flipped and but when don't
+            // deal with normal, so no problem
+            p0 = 0.5 * (tri->p1 + tri->p2);
+            p1 = 0.5 * (tri->p0 + tri->p2);
+            p2 = 0.5 * (tri->p0 + tri->p1);
+            break;
+        default:
+            Error("Wrong Triangle stratification index. Should be 0 to 3")
+            break;
+        }
+        // use baryC on this sub-Triangle;
+        return Vector3(
+            (1-b1-b2) * p0 +
+            b1 * p1 + 
+            b2 * p2
+        );
+    }
 }
 
 

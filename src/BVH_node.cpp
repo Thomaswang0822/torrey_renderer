@@ -326,7 +326,7 @@ Vector3 BVH_DiffuseColor(Scene& scene, Hit_Record& rec, const Color& refl,
             // If a sphere, we only sample once
             if (const Sphere *sph = get_if<Sphere>(lightObj)) {
                 UNUSED(sph);
-                result += sphereLight_contribution(scene, rec, root, lightObj, Kd, lightIntensity, rng, 6);
+                result += sphereLight_contribution(scene, rec, root, lightObj, Kd, lightIntensity, rng, 1);
             }
             else if (const Triangle *leading_tri = get_if<Triangle>(lightObj)) {
                 // deal with the entire mesh:
@@ -336,7 +336,8 @@ Vector3 BVH_DiffuseColor(Scene& scene, Hit_Record& rec, const Color& refl,
                     "Area Light points to a mesh, but mesh didn't point back.");
                 total_contribution = meshLight_total_contribution(
                     scene, rec, root, leading_tri->mesh_id, areaLight->shape_id,
-                    Kd, lightIntensity, rng, false, 100
+                    Kd, lightIntensity, rng, true, 64, false
+                    // last 3 are: sampleAll, maxSample, stratified
                 );
                 // average
                 // cout << "This area light contributes: " << total_contribution << endl;
@@ -419,7 +420,8 @@ Vector3 meshLight_total_contribution(Scene& scene, Hit_Record& rec, BVH_node& ro
             int mesh_id, int shape_id,
             const Vector3& Kd, const Vector3& I,
             pcg32_state& rng, 
-            bool sampleAll, int maxSample) 
+            bool sampleAll, int maxSample, 
+            bool stratified) 
 {
     // for Area Light usage
     Vector3 light_pos;  // sample position
@@ -429,11 +431,15 @@ Vector3 meshLight_total_contribution(Scene& scene, Hit_Record& rec, BVH_node& ro
     Triangle* tri;
     int local_idx;  // which tri to choose if sample the mesh
 
+    // decide several variables beforehand
     int meshCt = scene.meshes[mesh_id].size;
     Real meshArea = scene.meshes[mesh_id].totalArea;
     bool all = sampleAll || meshCt < maxSample;  // what really should be done
-    // sample some (100) lights only if flag set and > 100 lights present
+    // sample some (64) lights only if flag set and > 64 lights present
     int n_sample = all? meshCt : maxSample;
+    // stratas to look at
+    vector<int> stratas;
+    stratified? stratas.assign({0,1,2,3}): stratas.assign({-1});
     for (int local_i=0; local_i<n_sample; ++local_i) {
         // 1. pick a triangle
         if (all) {
@@ -446,21 +452,26 @@ Vector3 meshLight_total_contribution(Scene& scene, Hit_Record& rec, BVH_node& ro
         }
         tri = get_if<Triangle>(light_tri);
         assert(tri && "Some shape is not a Traingle in an area-lighted mesh");
-        // 2. pick a point from the triangle
-        light_pos = Triangle_sample(tri, rng);
-        // 3. visibility check        
-        if (!BVH_isVisible(rec.pos, light_pos, scene, root)) {
-            // QUESTION: shall we try to sample again?
-            continue;
+
+        for (int which_part : stratas) {
+            // 2. pick a point from the triangle
+            light_pos = Triangle_sample(tri, rng, which_part);
+            // 3. visibility check        
+            if (!BVH_isVisible(rec.pos, light_pos, scene, root)) {
+                // QUESTION: shall we try to sample again?
+                continue;
+            }
+            // 4. get geometric (instead of interpolated shading)normal 
+            // and area from the triangle
+            nx = tri->normal;
+            // flip: want nx and shading normal against, since we use max(−nx · l, 0)
+            nx = (dot(nx, light_pos - rec.pos) < 0.0)? nx : -nx;
+            // 5. accumulate
+            total_contribution += (all? tri->area : meshArea) *  // p(x)
+                1.0 / stratas.size() *   // average over stratas
+                areaLight_contribution(light_tri, rec, light_pos, Kd, I, nx);
         }
-        // 4. get geometric (instead of interpolated shading)normal 
-        // and area from the triangle
-        nx = tri->normal;
-        // flip: want nx and shading normal against, since we use max(−nx · l, 0)
-        nx = (dot(nx, light_pos - rec.pos) < 0.0)? nx : -nx;
-        // 5. accumulate
-        total_contribution += (all? tri->area : meshArea) * 
-            areaLight_contribution(light_tri, rec, light_pos, Kd, I, nx);
+            
     }
     // See function docstring @note
     return all? total_contribution : total_contribution / Real(n_sample);
