@@ -38,7 +38,7 @@ struct Basis {
     Vector3 u, v_up, w;
 
     /**
-     * @brief Given a normalized vector, use it as up vector
+     * @brief Given a normalized vector, use it as up-Z vector
      *   and generate a orthonormal basis
      * 
      * @param up 
@@ -172,9 +172,18 @@ Vector3 areaLight_contribution(const Shape* lightObj, Hit_Record& rec,
 /**
  * @brief cosine hemisphere sampling, transformed to the world space 
  * 
- * @param rec Hit_Record containing the hit normal and position
  * @param rng 
  * @param basis the orthonormal basis at hit point, with hit normal as up vector
  * @return Vector3 
  */
-Vector3 dir_cos_sample(Hit_Record& rec, pcg32_state& rng, Basis& basis);
+Vector3 dir_cos_sample(pcg32_state& rng, Basis& basis);
+
+/**
+ * @brief Phong sampling around the mirror ray direction r
+ * 
+ * @param rng 
+ * @param basis 
+ * @param alpha Phong material exponent
+ * @return Vector3 
+ */
+Vector3 dir_Phong_sample(pcg32_state& rng, Basis& basis, Real alpha);

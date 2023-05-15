@@ -108,10 +108,24 @@ Scene::Scene(const ParsedScene &scene) :
             else {
                 Error("Plastic: not Vector3 or ImageTexture.");
             }
+        } else if (auto *phong = get_if<ParsedPhong>(&parsed_mat)) {
+            if (get_if<Vector3>(&phong->reflectance)) {
+                materials.push_back(
+                    Phong{get<Vector3>(phong->reflectance), phong->exponent}
+                );
+            }
+            else if (get_if<ParsedImageTexture>(&plastic->reflectance)) {
+                materials.push_back(
+                    Phong{get<ParsedImageTexture>(phong->reflectance), phong->exponent}
+                );
+            }
+            else {
+                Error("Phong reflectance: not Vector3 or ImageTexture.");
+            }
         }
         
         else {
-            Error("Not Diffuse or Mirror or Plastic material.");
+            Error("Material not implemented yet.");
         }
     }
     // Copy the lights

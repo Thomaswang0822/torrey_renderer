@@ -255,7 +255,7 @@ Vector3 areaLight_contribution(const Shape* lightObj, Hit_Record& rec,
 }
 
 
-Vector3 dir_cos_sample(Hit_Record& rec, pcg32_state& rng, Basis& basis) {
+Vector3 dir_cos_sample(pcg32_state& rng, Basis& basis) {
     double u1 = next_pcg32_real<double>(rng);
     double u2 = next_pcg32_real<double>(rng);
 
@@ -263,6 +263,25 @@ Vector3 dir_cos_sample(Hit_Record& rec, pcg32_state& rng, Basis& basis) {
     Real phi = c_TWOPI * u1;
     Real x = cos(phi) * sqrt(u2);
     Real y = sin(phi) * sqrt(u2);
+
+    // turn to world space
+    Vector3 local_pos(x,y,z);
+    return basis.local2world(local_pos);
+}
+
+
+Vector3 dir_Phong_sample(pcg32_state& rng, Basis& basis, Real alpha) {
+    double u1 = next_pcg32_real<double>(rng);
+    double u2 = next_pcg32_real<double>(rng);
+
+    Real phi = c_TWOPI * u2;
+    Real cos_theta = pow(1.0-u1, 1.0/(alpha+1.0));  // derived in quiz problem
+    // assert(0.0 <= cos_theta && cos_theta <= 1.0 && "cos_theta is wrong");
+    Real sin_theta = sqrt(1.0 - cos_theta*cos_theta);
+
+    Real x = sin_theta * cos(phi);
+    Real y = sin_theta * sin(phi);
+    Real z = cos_theta;
 
     // turn to world space
     Vector3 local_pos(x,y,z);

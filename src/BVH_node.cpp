@@ -361,17 +361,17 @@ Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node& root,
     }
     assert(hitObj && "Bug: hitObj is a nullptr even when a hit is detected.");
 
-    Vector3 resultRGB(0.0, 0.0, 0.0);
+    Vector3 L_emmision(0.0, 0.0, 0.0);
     // HW4 UPDATE: Add Le to rendering equation (instead of return Le directly)
     if (is_light(*hitObj)) {
         int self_light_id = get_area_light_id(*hitObj);
         DiffuseAreaLight& self_light = get<DiffuseAreaLight>(scene.lights[self_light_id]);
         // 2) When a ray hits an area light, return the color of the light directly.
-        resultRGB += self_light.radiance;
+        L_emmision += self_light.radiance;
     }
 
     if (recDepth == 0) {
-        return resultRGB;
+        return L_emmision;
     }
 
     // Step 2: found hit -> get Material of hitObj
@@ -385,12 +385,12 @@ Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node& root,
 
         // HW4 UPDATE: path tracing Diffuse
         Basis basis = Basis::orthonormal_basis(rec.normal);
-        Vector3 sample_dir = dir_cos_sample(rec, rng, basis);
+        Vector3 sample_dir = dir_cos_sample(rng, basis);
         Vector3 Kd = eval_RGB(diffuseMat->reflectance, rec.u, rec.v);
         ray scatterRay = ray(rec.pos, sample_dir);
         // cout << dot(rec.normal, sample_dir) << endl;
         Real cosTerm = dot(rec.normal, sample_dir);
-        return resultRGB + (Kd * std::max(cosTerm, 0.0) * c_INVPI)
+        return L_emmision + (Kd * std::max(cosTerm, 0.0) * c_INVPI)
             * c_PI / cosTerm  // inverse of cosine hemisphere pdf
             * BVH_PixelColor(scene, scatterRay, root, rng, recDepth-1);
     }
@@ -426,20 +426,46 @@ Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node& root,
         // we decide between specular and diffuse with Stochastic Probability F vs (1-F)
         bool traceSpecular = next_pcg32_real<Real>(rng) < F;
         if (traceSpecular) {
-            return resultRGB + BVH_PixelColor(scene, rayOut, root, rng, recDepth-1);
+            return L_emmision + BVH_PixelColor(scene, rayOut, root, rng, recDepth-1);
         } else {
             Basis basis = Basis::orthonormal_basis(rec.normal);
-            Vector3 sample_dir = dir_cos_sample(rec, rng, basis);
+            Vector3 sample_dir = dir_cos_sample(rng, basis);
             Vector3 Kd = eval_RGB(plasticMat->reflectance, rec.u, rec.v);
             ray scatterRay = ray(rec.pos, sample_dir);
             // cout << dot(rec.normal, sample_dir) << endl;
             Real cosTerm = dot(rec.normal, sample_dir);
-            return resultRGB + (Kd * std::max(cosTerm, 0.0) * c_INVPI)
+            return L_emmision + (Kd * std::max(cosTerm, 0.0) * c_INVPI)
                 * c_PI / cosTerm  // inverse of cosine hemisphere pdf
                 * BVH_PixelColor(scene, scatterRay, root, rng, recDepth-1);
         }
-        
-        UNUSED(plasticMat);
+    }
+    else if (Phong* phongMat = get_if<Phong>(&currMaterial)) {
+        // sample dir first, this time around mirror ray direction
+        ray rayOut = mirror_ray(localRay, rec.normal, rec.pos);
+        Vector3 r = rayOut.direction();
+        Basis basis = Basis::orthonormal_basis(r);
+        Vector3 sample_dir = dir_Phong_sample(rng, basis, phongMat->exponent);
+
+        // check dot(hitting normal, sample direction)
+        if (dot(rec.normal, sample_dir) <=0 ) {
+            // This could happen because the sample direction is not around 
+            // hitting normal anymore
+            return L_emmision;
+        }
+
+        // compute Phong BRDF
+        Vector3 Ks = eval_RGB(phongMat->reflectance, rec.u, rec.v);
+        Real cosTerm = dot(r, sample_dir);
+        Vector3 phong = Ks * (phongMat->exponent + 1.0) * c_INVTWOPI *
+                pow(std::max(cosTerm, 0.0), phongMat->exponent);
+
+        // compute Phong pdf
+        Real phongPDF = (phongMat->exponent + 1.0) * c_INVTWOPI *
+                pow(cosTerm, phongMat->exponent);
+        // recursion
+        ray scatterRay = ray(rec.pos, sample_dir);        
+        return L_emmision + phong * (1/ phongPDF)  // inverse of Phong pdf
+            * BVH_PixelColor(scene, scatterRay, root, rng, recDepth-1);
     }
     else {
         std::cout << "Material not Diffuse or Mirror; will implement later" 
