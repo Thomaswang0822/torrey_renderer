@@ -455,16 +455,45 @@ Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node& root,
 
         // compute Phong BRDF
         Vector3 Ks = eval_RGB(phongMat->reflectance, rec.u, rec.v);
-        Real cosTerm = dot(r, sample_dir);
+        /* Real cosTerm = dot(r, sample_dir);
         Vector3 phong = Ks * (phongMat->exponent + 1.0) * c_INVTWOPI *
                 pow(std::max(cosTerm, 0.0), phongMat->exponent);
 
         // compute Phong pdf
         Real phongPDF = (phongMat->exponent + 1.0) * c_INVTWOPI *
-                pow(cosTerm, phongMat->exponent);
+                pow(cosTerm, phongMat->exponent); */
         // recursion
-        ray scatterRay = ray(rec.pos, sample_dir);        
-        return L_emmision + phong * (1/ phongPDF)  // inverse of Phong pdf
+        ray scatterRay = ray(rec.pos, sample_dir); 
+
+        // ##### But note that phong * (1/ phongPDF) is just Ks #####     
+        return L_emmision + Ks  // inverse of Phong pdf
+            * BVH_PixelColor(scene, scatterRay, root, rng, recDepth-1);
+    }
+    else if (BlinnPhong* blphMat = get_if<BlinnPhong>(&currMaterial)) {
+        // sample half-vector h around shading normal
+        /**
+         * We use the Phong sampling function because the procedure,
+         * i.e. how to get (theta, phi) from (u1, u2), is the same.
+         * What we get is the intermediate h.
+         * 
+         * The difference is in the pdf used in recursion step.
+         */
+        Basis basis = Basis::orthonormal_basis(rec.normal);
+        Vector3 sample_h = dir_Phong_sample(rng, basis, blphMat->exponent);
+
+        // reflect in_dir over h to get out_dir
+        ray scatterRay = mirror_ray(localRay, sample_h, rec.pos);
+        Vector3 out_dir = scatterRay.direction();
+        // check dot(hitting normal, out_dir) 
+        if (dot(rec.normal, out_dir) <= 0.0) {
+            return L_emmision;
+        }
+        // compute BlinnPhong BRDF
+        Vector3 blphBRDF = blphMat->BlinnPhong_BRDF(sample_h, out_dir, rec);
+        // compute BlinnPhong PDF
+        Real blphPDF = blphMat->BlinnPhong_PDF(sample_h, out_dir, rec);
+        // recursion
+        return L_emmision + blphBRDF * (1.0 / blphPDF)
             * BVH_PixelColor(scene, scatterRay, root, rng, recDepth-1);
     }
     else {

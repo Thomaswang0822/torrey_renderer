@@ -114,13 +114,27 @@ Scene::Scene(const ParsedScene &scene) :
                     Phong{get<Vector3>(phong->reflectance), phong->exponent}
                 );
             }
-            else if (get_if<ParsedImageTexture>(&plastic->reflectance)) {
+            else if (get_if<ParsedImageTexture>(&phong->reflectance)) {
                 materials.push_back(
                     Phong{get<ParsedImageTexture>(phong->reflectance), phong->exponent}
                 );
             }
             else {
                 Error("Phong reflectance: not Vector3 or ImageTexture.");
+            }
+        } else if (auto *blph = get_if<ParsedBlinnPhong>(&parsed_mat)) {
+            if (get_if<Vector3>(&blph->reflectance)) {
+                materials.push_back(
+                    BlinnPhong{get<Vector3>(blph->reflectance), blph->exponent}
+                );
+            }
+            else if (get_if<ParsedImageTexture>(&blph->reflectance)) {
+                materials.push_back(
+                    BlinnPhong{get<ParsedImageTexture>(blph->reflectance), blph->exponent}
+                );
+            }
+            else {
+                Error("BlinnPhong reflectance: not Vector3 or ImageTexture.");
             }
         }
         

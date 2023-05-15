@@ -130,6 +130,32 @@ struct Phong {
 struct BlinnPhong {
     Color reflectance; // Ks
     Real exponent; // alpha
+
+    /**
+     * @brief Get the Fresnel calculated with half-vector h
+     * 
+     * @param h half-vector from random sampling
+     * @param out_dir ray_in direction mirror-reflected over h
+     * @param rec
+     * @return Vector3 
+     */
+    Vector3 get_Fh(const Vector3& h, const Vector3& out_dir, Hit_Record& rec) {
+        Vector3 Ks = eval_RGB(reflectance, rec.u, rec.v);
+        return Ks + (1.0 - Ks) * pow(1.0-dot(h, out_dir), 5.0);
+    }
+
+    Vector3 BlinnPhong_BRDF(const Vector3& h, const Vector3& out_dir, Hit_Record& rec) {
+        // check dot(hitting normal, out_dir) is outside:
+        
+        Real c = (exponent + 2.0) * c_INVFOURPI / (2.0 - pow(2.0, -exponent/2));
+        Vector3 Fh = get_Fh(h, out_dir, rec);
+        return c * Fh * pow(dot(rec.normal, h), exponent);
+    }
+
+    Real BlinnPhong_PDF(const Vector3& h, const Vector3& out_dir, Hit_Record& rec) {
+        return (exponent + 1.0) * pow(dot(rec.normal, h), exponent) *
+            c_INVTWOPI / (4.0 * dot(out_dir, h));
+    }
 };
 
 struct BlinnPhongMicrofacet {
