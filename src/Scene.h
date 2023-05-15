@@ -193,10 +193,15 @@ struct Triangle : public ShapeBase{
         e1 = p1 - p0;  e2 = p2 - p0;
         area = 0.5 * length(cross(e1, e2));
         // write normals
-        n0 = mesh->normals[id3[0]];
-        n1 = mesh->normals[id3[1]];
-        n2 = mesh->normals[id3[2]];
         normal = normalize(cross(e1, e2));
+        if (mesh->normals.size() > 0) {
+            n0 = mesh->normals[id3[0]];
+            n1 = mesh->normals[id3[1]];
+            n2 = mesh->normals[id3[2]];
+        } else {
+            // just use Triangle normal
+            n0 = normal; n1 = normal; n2 = normal;
+        }
         // material id
         material_id = mesh->material_id;
         // create bbox during instantiation
