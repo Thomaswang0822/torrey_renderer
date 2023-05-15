@@ -1,6 +1,7 @@
 #pragma once
 
-#include "image.h"
+#include "BVH_node.h"
+#include "helper.h"
 
 Image3 hw_4_1(const std::vector<std::string> &params);
 Image3 hw_4_2(const std::vector<std::string> &params);

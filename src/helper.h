@@ -41,19 +41,23 @@ struct Basis {
      * @brief Given a normalized vector, use it as up vector
      *   and generate a orthonormal basis
      * 
-     * @param v_up 
+     * @param up 
      * @return Basis 
      */
-    static Basis orthonormal_basis(Vector3 v_up) {
+    static Basis orthonormal_basis(Vector3 up) {
         // pick a random vector
         Vector3 some(1.0, 0.0, 0.0);
-        if (abs(dot(v_up, some)) < 1e-6) {
+        if (abs(up.x) > 0.9) {
             // may have numerical issue when doing cross product
-            some = {0.0, 0.0, 1.0};
+            some = {0.0, 1.0, 0.0};
         }
-        Vector3 u = normalize(cross(v_up, some));
-        Vector3 w = cross(u, v_up);
-        return Basis{u, v_up, w};
+        Vector3 v = normalize(cross(up, some));
+        Vector3 u = cross(up, v);
+        return Basis{u, v, up};
+    }
+
+    inline Vector3 local2world(const Vector3& pos) {
+        return pos.x * u + pos.y * v_up + pos.z * w;
     }
 };
 
@@ -163,3 +167,14 @@ Vector3 Sphere_sample_cone(const Sphere* sph, pcg32_state& rng,
 Vector3 areaLight_contribution(const Shape* lightObj, Hit_Record& rec, 
             const Vector3& lightPos, const Vector3& Kd, 
             const Vector3& I, const Vector3& nx);
+
+
+/**
+ * @brief cosine hemisphere sampling, transformed to the world space 
+ * 
+ * @param rec Hit_Record containing the hit normal and position
+ * @param rng 
+ * @param basis the orthonormal basis at hit point, with hit normal as up vector
+ * @return Vector3 
+ */
+Vector3 dir_cos_sample(Hit_Record& rec, pcg32_state& rng, Basis& basis);

@@ -253,3 +253,18 @@ Vector3 areaLight_contribution(const Shape* lightObj, Hit_Record& rec,
         * std::max(dot(rec.normal, l), 0.0) // max (ns · l, 0)
         * std::max(dot(-nx, l), 0.0);  // max (−nx · l, 0)
 }
+
+
+Vector3 dir_cos_sample(Hit_Record& rec, pcg32_state& rng, Basis& basis) {
+    double u1 = next_pcg32_real<double>(rng);
+    double u2 = next_pcg32_real<double>(rng);
+
+    Real z = sqrt(1.0 - u2);  // also cos(theta)
+    Real phi = c_TWOPI * u1;
+    Real x = cos(phi) * sqrt(u2);
+    Real y = sin(phi) * sqrt(u2);
+
+    // turn to world space
+    Vector3 local_pos(x,y,z);
+    return basis.local2world(local_pos);
+}

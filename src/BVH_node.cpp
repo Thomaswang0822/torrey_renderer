@@ -361,12 +361,17 @@ Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node& root,
     }
     assert(hitObj && "Bug: hitObj is a nullptr even when a hit is detected.");
 
-    // HW3 UPDATE: use self-emission if "I am an area light"
+    Vector3 resultRGB(0.0, 0.0, 0.0);
+    // HW4 UPDATE: Add Le to rendering equation (instead of return Le directly)
     if (is_light(*hitObj)) {
         int self_light_id = get_area_light_id(*hitObj);
         DiffuseAreaLight& self_light = get<DiffuseAreaLight>(scene.lights[self_light_id]);
         // 2) When a ray hits an area light, return the color of the light directly.
-        return self_light.radiance;
+        resultRGB += self_light.radiance;
+    }
+
+    if (recDepth == 0) {
+        return resultRGB;
     }
 
     // Step 2: found hit -> get Material of hitObj
@@ -375,36 +380,50 @@ Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node& root,
 
     // Step 3 BVH UPDATE: act according to Material (instead of Shape)
     if (Diffuse* diffuseMat = std::get_if<Diffuse>(&currMaterial)) {
-        // no recursion, compute diffuse color
-        return BVH_DiffuseColor(scene, rec, diffuseMat->reflectance, root, hitObj, rng);
+        // // no recursion, compute diffuse color
+        // return BVH_DiffuseColor(scene, rec, diffuseMat->reflectance, root, hitObj, rng);
+
+        // HW4 UPDATE: path tracing Diffuse
+        Basis basis = Basis::orthonormal_basis(rec.normal);
+        Vector3 sample_dir = dir_cos_sample(rec, rng, basis);
+        Vector3 Kd = eval_RGB(diffuseMat->reflectance, rec.u, rec.v);
+        ray scatterRay = ray(rec.pos, sample_dir);
+        // cout << dot(rec.normal, sample_dir) << endl;
+        Real cosTerm = dot(rec.normal, sample_dir);
+        return resultRGB + (Kd * std::max(cosTerm, 0.0) * c_INVPI)
+            * c_PI / cosTerm  // inverse of cosine hemisphere pdf
+            * BVH_PixelColor(scene, scatterRay, root, rng, recDepth-1);
     }
     else if (Mirror* mirrorMat = std::get_if<Mirror>(&currMaterial)) {
-        // mirror refect ray and do recursion
+        /* // mirror refect ray and do recursion
         ray rayOut = mirror_ray(localRay, rec.normal, rec.pos);
 
         // ######### perfect mirror #########
-        /* Vector3* mirrorColor = std::get_if<Vector3>(&mirrorMat->reflectance);
-        assert(mirrorColor && "Mirror material has reflectance not Vec3 RGB");
-        return *mirrorColor // color at current hitting pt
-            * BVH_PixelColor(scene, rayOut, root, recDepth=recDepth-1);   // element-wise mutiply */
+        // Vector3* mirrorColor = std::get_if<Vector3>(&mirrorMat->reflectance);
+        // assert(mirrorColor && "Mirror material has reflectance not Vec3 RGB");
+        // return *mirrorColor // color at current hitting pt
+        //     * BVH_PixelColor(scene, rayOut, root, recDepth=recDepth-1);   // element-wise mutiply
 
         // ######### hw3 Fresnel reflection  #########
         double cos_theta = dot(rec.normal, rayOut.direction());
         // Vector3 F * mirror recursion
         return mirror_SchlickFresnel_color(mirrorMat->reflectance, rec.u, rec.v, cos_theta) 
-            * BVH_PixelColor(scene, rayOut, root, rng, recDepth=recDepth-1);
-    } 
+            * BVH_PixelColor(scene, rayOut, root, rng, recDepth=recDepth-1); */
+
+        UNUSED(mirrorMat);
+    }
     else if (Plastic* plasticMat = std::get_if<Plastic>(&currMaterial)) {
-        ray rayOut = mirror_ray(localRay, rec.normal, rec.pos);
+        /* ray rayOut = mirror_ray(localRay, rec.normal, rec.pos);
         double cos_theta = dot(rec.normal, rayOut.direction());
 
         // double F0 = plasticMat->get_F0();
         double F = compute_SchlickFresnel(plasticMat->get_F0(), cos_theta);
 
         // Vector3 F * mirror recursion + (1 − F)diffuse,
-        return /* mirror_SchlickFresnel_color(plasticMat->reflectance, rec.u, rec.v, cos_theta) */ 
-            F * BVH_PixelColor(scene, rayOut, root, rng, recDepth=recDepth-1) +
-            (1.0 - F) * BVH_DiffuseColor(scene, rec, plasticMat->reflectance, root, hitObj, rng);
+        return F * BVH_PixelColor(scene, rayOut, root, rng, recDepth=recDepth-1) +
+            (1.0 - F) * BVH_DiffuseColor(scene, rec, plasticMat->reflectance, root, hitObj, rng); */
+        
+        UNUSED(plasticMat);
     }
     else {
         std::cout << "Material not Diffuse or Mirror; will implement later" 
