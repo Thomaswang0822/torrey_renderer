@@ -395,7 +395,7 @@ Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node& root,
             * BVH_PixelColor(scene, scatterRay, root, rng, recDepth-1);
     }
     else if (Mirror* mirrorMat = std::get_if<Mirror>(&currMaterial)) {
-        /* // mirror refect ray and do recursion
+        // mirror refect ray and do recursion
         ray rayOut = mirror_ray(localRay, rec.normal, rec.pos);
 
         // ######### perfect mirror #########
@@ -408,20 +408,36 @@ Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node& root,
         double cos_theta = dot(rec.normal, rayOut.direction());
         // Vector3 F * mirror recursion
         return mirror_SchlickFresnel_color(mirrorMat->reflectance, rec.u, rec.v, cos_theta) 
-            * BVH_PixelColor(scene, rayOut, root, rng, recDepth=recDepth-1); */
+            * BVH_PixelColor(scene, rayOut, root, rng, recDepth=recDepth-1);
 
-        UNUSED(mirrorMat);
     }
     else if (Plastic* plasticMat = std::get_if<Plastic>(&currMaterial)) {
-        /* ray rayOut = mirror_ray(localRay, rec.normal, rec.pos);
+        ray rayOut = mirror_ray(localRay, rec.normal, rec.pos);
         double cos_theta = dot(rec.normal, rayOut.direction());
 
         // double F0 = plasticMat->get_F0();
         double F = compute_SchlickFresnel(plasticMat->get_F0(), cos_theta);
 
-        // Vector3 F * mirror recursion + (1 − F)diffuse,
+        /* // Vector3 F * mirror recursion + (1 − F)diffuse,
         return F * BVH_PixelColor(scene, rayOut, root, rng, recDepth=recDepth-1) +
             (1.0 - F) * BVH_DiffuseColor(scene, rec, plasticMat->reflectance, root, hitObj, rng); */
+
+        // HW4 UPDATE: instead of tracing both,
+        // we decide between specular and diffuse with Stochastic Probability F vs (1-F)
+        bool traceSpecular = next_pcg32_real<Real>(rng) < F;
+        if (traceSpecular) {
+            return resultRGB + BVH_PixelColor(scene, rayOut, root, rng, recDepth-1);
+        } else {
+            Basis basis = Basis::orthonormal_basis(rec.normal);
+            Vector3 sample_dir = dir_cos_sample(rec, rng, basis);
+            Vector3 Kd = eval_RGB(plasticMat->reflectance, rec.u, rec.v);
+            ray scatterRay = ray(rec.pos, sample_dir);
+            // cout << dot(rec.normal, sample_dir) << endl;
+            Real cosTerm = dot(rec.normal, sample_dir);
+            return resultRGB + (Kd * std::max(cosTerm, 0.0) * c_INVPI)
+                * c_PI / cosTerm  // inverse of cosine hemisphere pdf
+                * BVH_PixelColor(scene, scatterRay, root, rng, recDepth-1);
+        }
         
         UNUSED(plasticMat);
     }

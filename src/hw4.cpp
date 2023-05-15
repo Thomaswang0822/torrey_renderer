@@ -20,11 +20,6 @@ Image3 hw_4_1(const std::vector<std::string> &params) {
     Timer timer;
     tick(timer);
     ParsedScene scene = parse_scene(params[0]);
-/*     for (auto& shp : scene.shapes) {
-        if (ParsedTriangleMesh* pmesh = std::get_if<ParsedTriangleMesh>(&shp)) {
-            assert(pmesh->normals.size() > 0);
-        }
-    } */
     std::cout << "Scene parsing done. Took " << tick(timer) << " seconds." << std::endl;
     // std::cout << scene << std::endl;
 
@@ -99,44 +94,10 @@ Image3 hw_4_1(const std::vector<std::string> &params) {
 
 Image3 hw_4_2(const std::vector<std::string> &params) {
     // Homework 4.2: adding more materials
-    if (params.size() < 1) {
-        return Image3(0, 0);
-    }
-
-    int max_depth = 50;
-    std::string filename;
-    for (int i = 0; i < (int)params.size(); i++) {
-        if (params[i] == "-max_depth") {
-            max_depth = std::stoi(params[++i]);
-        } else if (filename.empty()) {
-            filename = params[i];
-        }
-    }
-
-    ParsedScene scene = parse_scene(filename);
-    UNUSED(scene);
-
-    return Image3(0, 0);
+    return hw_4_1(params);
 }
 
 Image3 hw_4_3(const std::vector<std::string> &params) {
     // Homework 4.3: multiple importance sampling
-    if (params.size() < 1) {
-        return Image3(0, 0);
-    }
-
-    int max_depth = 50;
-    std::string filename;
-    for (int i = 0; i < (int)params.size(); i++) {
-        if (params[i] == "-max_depth") {
-            max_depth = std::stoi(params[++i]);
-        } else if (filename.empty()) {
-            filename = params[i];
-        }
-    }
-
-    ParsedScene scene = parse_scene(filename);
-    UNUSED(scene);
-
-    return Image3(0, 0);
+    return hw_4_1(params);
 }
