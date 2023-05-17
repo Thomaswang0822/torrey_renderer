@@ -144,7 +144,7 @@ struct BlinnPhong {
         return Ks + (1.0 - Ks) * pow(1.0-dot(h, out_dir), 5.0);
     }
 
-    Vector3 BlinnPhong_BRDF(const Vector3& h, const Vector3& out_dir, Hit_Record& rec) {
+    Vector3 compute_BRDF(const Vector3& h, const Vector3& out_dir, Hit_Record& rec) {
         // check dot(hitting normal, out_dir) is outside:
         
         Real c = (exponent + 2.0) * c_INVFOURPI / (2.0 - pow(2.0, -exponent/2));
@@ -152,7 +152,7 @@ struct BlinnPhong {
         return c * Fh * pow(dot(rec.normal, h), exponent);
     }
 
-    Real BlinnPhong_PDF(const Vector3& h, const Vector3& out_dir, Hit_Record& rec) {
+    Real compute_PDF(const Vector3& h, const Vector3& out_dir, Hit_Record& rec) {
         return (exponent + 1.0) * pow(dot(rec.normal, h), exponent) *
             c_INVTWOPI / (4.0 * dot(out_dir, h));
     }
@@ -161,6 +161,45 @@ struct BlinnPhong {
 struct BlinnPhongMicrofacet {
     Color reflectance; // Ks
     Real exponent; // alpha
+
+    // same as that for BlinnPhong
+    Vector3 get_Fh(const Vector3& h, const Vector3& out_dir, Hit_Record& rec) {
+        Vector3 Ks = eval_RGB(reflectance, rec.u, rec.v);
+        return Ks + (1.0 - Ks) * pow(1.0-dot(h, out_dir), 5.0);
+    }
+
+    // (Fh * D * G) / (4 * dot(n_s, in_dir))  if dot(n_s, out_dir) > 0
+    Vector3 compute_BRDF(const Vector3& h, const Vector3& in_dir,
+            const Vector3& out_dir, Hit_Record& rec) 
+    {
+        Vector3 Fh = get_Fh(h, out_dir, rec);
+        // G(in_dir, out_dir) = G1(in_dir) * G1(out_dir)
+        Real G = compute_G1(h, in_dir, rec) * compute_G1(h, out_dir, rec);
+        // D(h) = C * dot(shading noromal, h)
+        Real D = (exponent + 2.0) * c_INVTWOPI * pow(dot(rec.normal, h), exponent);
+        // put together
+        return Fh * D * G / (4.0 * dot(rec.normal, in_dir));
+    }
+
+    // rational polynomial fit from Walter et al.
+    // cos_theta is dot(dir, shading normal)
+    Real compute_G1(const Vector3& h, const Vector3& dir, Hit_Record& rec) {
+        if (dot(dir, h) <= 0) { return 0.0; }
+        Real cos_theta = dot(dir, rec.normal);
+        // assert(cos_theta > 1e-6);
+        // cot = 1 / tan = cos / sin
+        Real cotan_theta = cos_theta / sqrt(1.0 - cos_theta * cos_theta);  
+        Real a = sqrt(0.5 * exponent + 1.0) * cotan_theta;
+
+        if (a >= 1.6) { return 1.0; }
+
+        return (3.535 * a + 2.181 * a * a) / (1.0 + 2.276 * a + 2.577 * a * a);
+    }
+
+    Real compute_PDF(const Vector3& h, const Vector3& out_dir, Hit_Record& rec) {
+        return (exponent + 1.0) * pow(dot(rec.normal, h), exponent) *
+            c_INVTWOPI / (4.0 * dot(out_dir, h));
+    }
 };
 
 using Material = std::variant<Diffuse,

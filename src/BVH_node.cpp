@@ -489,15 +489,42 @@ Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node& root,
             return L_emmision;
         }
         // compute BlinnPhong BRDF
-        Vector3 blphBRDF = blphMat->BlinnPhong_BRDF(sample_h, out_dir, rec);
+        Vector3 blphBRDF = blphMat->compute_BRDF(sample_h, out_dir, rec);
         // compute BlinnPhong PDF
-        Real blphPDF = blphMat->BlinnPhong_PDF(sample_h, out_dir, rec);
+        Real blphPDF = blphMat->compute_PDF(sample_h, out_dir, rec);
         // recursion
         return L_emmision + blphBRDF * (1.0 / blphPDF)
             * BVH_PixelColor(scene, scatterRay, root, rng, recDepth-1);
     }
+    else if (BlinnPhongMicrofacet* micro_blphMat = get_if<BlinnPhongMicrofacet>(&currMaterial)) {
+        // sample half vector h to estimate D(h)
+        Basis basis = Basis::orthonormal_basis(rec.normal);
+        Vector3 sample_h = dir_Phong_sample(rng, basis, micro_blphMat->exponent);
+
+        // reflect in_dir over h to get out_dir
+        ray scatterRay = mirror_ray(localRay, sample_h, rec.pos);
+        Vector3 out_dir = scatterRay.direction();
+        Vector3 in_dir = -localRay.direction();
+        
+        // check dot(hitting normal, out_dir) 
+        if (dot(rec.normal, out_dir) <= 0.0) {
+            return L_emmision;
+        }
+
+        // compute BlinnPhongMicrofacet BRDF;
+        // note: in_dir w_i should align with shading normal
+        Vector3 micro_blphBRDF = micro_blphMat->compute_BRDF(
+            sample_h, in_dir, out_dir, rec);
+        
+        // compute BlinnPhongMicrofacet PDF;
+        Real micro_blphPDF = micro_blphMat->compute_PDF(sample_h, out_dir, rec);
+
+        // recursion
+        return L_emmision + micro_blphBRDF * (1.0 / micro_blphPDF)
+            * BVH_PixelColor(scene, scatterRay, root, rng, recDepth-1);
+    }
     else {
-        std::cout << "Material not Diffuse or Mirror; will implement later" 
+        std::cout << "Material Unknown; will implement later" 
             << std::endl;
     }
 
