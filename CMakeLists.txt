@@ -51,6 +51,7 @@ set(SRCS src/3rdparty/miniz.h
          src/helper.h
          src/all_utils.h
          src/Hit_Record.h
+         src/compute_radiance.h
          src/compute_normals.cpp
          src/hw1.cpp
          src/hw2.cpp
@@ -69,6 +70,7 @@ set(SRCS src/3rdparty/miniz.h
          src/Scene.cpp
          src/BVH_node.cpp
          src/helper.cpp
+         src/compute_radiance.cpp
     )
 
 add_library(torrey_lib STATIC ${SRCS})

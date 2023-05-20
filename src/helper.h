@@ -8,11 +8,6 @@
 #include "Scene.h"
 
 
-#include <filesystem>
-#include <variant>
-#include <vector>
-
-
 void checkRaySphereHit(ray localRay,
                        const Sphere* sph,
                        Hit_Record& rec,
