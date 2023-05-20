@@ -173,7 +173,7 @@ bool BVH_node::hit(const ray& r, Real t_min, Real t_max,
 
     // non-leaf node: recursion
     bool hit_left, hit_right;
-    if ( leftBoxCloser(r.origin()) ) {
+    if ( leftBoxCloser(r.orig) ) {
         hit_left = left->hit(r, t_min, t_max, scene, rec, hitObj);
         hit_right = right->hit(r, t_min, 
             hit_left ? rec.dist : t_max,  // spatial short-circuiting

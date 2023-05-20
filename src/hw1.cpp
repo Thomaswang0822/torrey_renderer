@@ -27,7 +27,7 @@ Image3 hw_1_1(const std::vector<std::string> &/*params*/) {
             // shoot a ray
             u = Real(x) / (img.width - 1);
             localRay = camera.get_ray(u, v);
-            img(x, img.height-1 - y) = localRay.direction();
+            img(x, img.height-1 - y) = localRay.dir;
         }
     }
     return img;
@@ -35,10 +35,10 @@ Image3 hw_1_1(const std::vector<std::string> &/*params*/) {
 
 // Section 6.2
 double hit_sphere(const Sphere& ball, const ray& r) {
-    Vector3 oc = r.origin() - ball.center;
+    Vector3 oc = r.orig - ball.center;
     // a,b,c refer to those in at^2 + bt + c = 0
-    auto a = length_squared(r.direction());
-    auto half_b = dot(oc, r.direction());
+    auto a = length_squared(r.dir);
+    auto half_b = dot(oc, r.dir);
     auto c = length_squared(oc) - ball.radius * ball.radius;
     auto discriminant = half_b*half_b - a*c;
     if (discriminant < 0) {
@@ -469,13 +469,13 @@ Vector3 compute_pixel_color(Scene& scene, ray& localRay, unsigned int recDepth=M
     for (unsigned int i=0; i<scene.shapes.size(); ++i) {
         sphere = scene.shapes[i];
         currHit = hit_sphere(sphere, localRay);
-        /* if (distance(localRay.origin(), sphere.center) < 0.5 - 1e-6) {
+        /* if (distance(localRay.orig, sphere.center) < 0.5 - 1e-6) {
             std::cout << "Create mirror ray at depth: " << recDepth << std::endl;
-            std::cerr << "Ray orig: " << localRay.origin() << std::endl;
+            std::cerr << "Ray orig: " << localRay.orig << std::endl;
             std::cerr << "***FROM: " << localRay.srcObj() 
                 << " TO: " << i << std::endl;
-            std::cerr << "***Origin inside sphere? " << distance(localRay.origin(), sphere.center) << std::endl;
-            std::cerr << "Ray dir: " << localRay.direction() << std::endl;
+            std::cerr << "***Origin inside sphere? " << distance(localRay.orig, sphere.center) << std::endl;
+            std::cerr << "Ray dir: " << localRay.dir << std::endl;
             std::cerr << "Sphere center: " << sphere.center << std::endl;
             throw std::runtime_error("ORIGIN inside sphere");
         } */
@@ -503,7 +503,7 @@ Vector3 compute_pixel_color(Scene& scene, ray& localRay, unsigned int recDepth=M
             normalize(hitPt - sphere.center),   // normal
             hitPt
         );
-        rayOut.setSrc(sphereId); // DEBUG purpose; see ray.h      
+        rayOut.src = sphereId; // DEBUG purpose; see ray.h      
         
         return currMaterial.color // color at current hitting pt
                 * compute_pixel_color(scene, rayOut, recDepth=recDepth-1);   // element-wise mutiply
@@ -644,13 +644,13 @@ Vector3 compute_pixel_color2(Scene& scene, ray& localRay,
     for (unsigned int i=0; i<scene.shapes.size(); ++i) {
         sphere = scene.shapes[i];
         currHit = hit_sphere(sphere, localRay);
-        /* if (distance(localRay.origin(), sphere.center) < 0.5 - 1e-6) {
+        /* if (distance(localRay.orig, sphere.center) < 0.5 - 1e-6) {
             std::cout << "Create mirror ray at depth: " << recDepth << std::endl;
-            std::cerr << "Ray orig: " << localRay.origin() << std::endl;
+            std::cerr << "Ray orig: " << localRay.orig << std::endl;
             std::cerr << "***FROM: " << localRay.srcObj() 
                 << " TO: " << i << std::endl;
-            std::cerr << "***Origin inside sphere? " << distance(localRay.origin(), sphere.center) << std::endl;
-            std::cerr << "Ray dir: " << localRay.direction() << std::endl;
+            std::cerr << "***Origin inside sphere? " << distance(localRay.orig, sphere.center) << std::endl;
+            std::cerr << "Ray dir: " << localRay.dir << std::endl;
             std::cerr << "Sphere center: " << sphere.center << std::endl;
             throw std::runtime_error("ORIGIN inside sphere");
         } */
@@ -675,12 +675,12 @@ Vector3 compute_pixel_color2(Scene& scene, ray& localRay,
         Vector3 hitPt = localRay.at(hitResult);
         Vector3 sphereNormal = normalize(hitPt - sphere.center);
         // --Need to know if the ray will hit sphere from inside or outside
-        bool hitFromOutside = dot(localRay.direction(), sphereNormal) < 0.0;
+        bool hitFromOutside = dot(localRay.dir, sphereNormal) < 0.0;
         // --such that we compute eta_ratio in advance
         double eta_ratio = (hitFromOutside)? 
             1.0 / RefractIndices[currMaterial.type] : RefractIndices[currMaterial.type];
         // --to determine if refract is possible
-        double cos_theta = fmin(dot(-localRay.direction(), sphereNormal), 1.0);
+        double cos_theta = fmin(dot(-localRay.dir, sphereNormal), 1.0);
         double sin_theta = sqrt(1.0 - cos_theta*cos_theta);
         bool cannot_refract = eta_ratio * sin_theta > 1.0;
 
@@ -693,7 +693,7 @@ Vector3 compute_pixel_color2(Scene& scene, ray& localRay,
                 sphereNormal,
                 hitPt
             );
-            rayOut.setSrc(sphereId); // DEBUG purpose; see ray.h      
+            rayOut.src = sphereId; // DEBUG purpose; see ray.h      
             
             return currMaterial.color // color at current hitting pt
                     * compute_pixel_color2(scene, rayOut, rng, recDepth=recDepth-1);   // element-wise mutiply
@@ -705,7 +705,7 @@ Vector3 compute_pixel_color2(Scene& scene, ray& localRay,
                 hitPt,
                 eta_ratio
             );
-            rayOut.setSrc(sphereId); // DEBUG purpose; see ray.h
+            rayOut.src = sphereId; // DEBUG purpose; see ray.h
             // we doing refraction, attenuation is {1.0, 1.0, 1.0}, i.e. no weakening
             return compute_pixel_color2(scene, rayOut, rng, recDepth=recDepth-1);
         }

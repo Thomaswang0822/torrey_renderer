@@ -10,9 +10,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
 if(MSVC)
-  add_compile_options(/Wall)
+  add_compile_options(/Wall /Wno-unknown-pragmas)
 else()
-  add_compile_options(-Wall)
+  add_compile_options(-Wall -Wno-unknown-pragmas)
 endif()
 
 include_directories(${CMAKE_SOURCE_DIR}/src)

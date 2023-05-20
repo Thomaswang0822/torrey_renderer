@@ -115,14 +115,14 @@ bool hw2::RayIntersectsTriangle(ray localRay,
 {
     Vector3 h, s, q;
     Real a, f, u, v;
-    h = cross(localRay.direction(), tri.e2);
+    h = cross(localRay.dir, tri.e2);
     a = dot(tri.e1, h);
 
     if (a > -EPSILON && a < EPSILON) {
         return false;    // This ray is parallel to this triangle.
     }
     f = 1.0 / a;
-    s = localRay.origin() - tri.p0;
+    s = localRay.orig - tri.p0;
     u = f * dot(s, h);
 
     if (u < 0.0 || u > 1.0) {
@@ -130,7 +130,7 @@ bool hw2::RayIntersectsTriangle(ray localRay,
     }
 
     q = cross(s, tri.e1);
-    v = f * dot(localRay.direction(), q);
+    v = f * dot(localRay.dir, q);
 
     if (v < 0.0 || u + v > 1.0) {
         return false;   // hit point not in triangle

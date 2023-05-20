@@ -7,10 +7,10 @@ void checkRaySphereHit(ray localRay,
                        Hit_Record& rec,
                        Shape*& hitObj) 
 {
-    Vector3 oc = localRay.origin() - sph->position;
+    Vector3 oc = localRay.orig - sph->position;
     // a,b,c refer to those in at^2 + bt + c = 0
-    auto a = length_squared(localRay.direction());
-    auto half_b = dot(oc, localRay.direction());
+    auto a = length_squared(localRay.dir);
+    auto half_b = dot(oc, localRay.dir);
     auto c = length_squared(oc) - sph->radius * sph->radius;
     auto discriminant = half_b*half_b - a*c;
     Real root;
@@ -58,14 +58,14 @@ void checkRayTriHit(ray localRay,
     // local u,v are baryC of a Triangle, i.e. (1-u-v, u, v)
     Vector3 h, s, q;
     Real a, f, u, v;
-    h = cross(localRay.direction(), tri->e2);
+    h = cross(localRay.dir, tri->e2);
     a = dot(tri->e1, h);
 
     if (a > -EPSILON && a < EPSILON) {
         return;    // This ray is parallel to this triangle.
     }
     f = 1.0 / a;
-    s = localRay.origin() - tri->p0;
+    s = localRay.orig - tri->p0;
     u = f * dot(s, h);
 
     if (u < 0.0 || u > 1.0) {
@@ -73,7 +73,7 @@ void checkRayTriHit(ray localRay,
     }
 
     q = cross(s, tri->e1);
-    v = f * dot(localRay.direction(), q);
+    v = f * dot(localRay.dir, q);
 
     if (v < 0.0 || u + v > 1.0) {
         return;   // hit point not in triangle

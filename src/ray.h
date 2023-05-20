@@ -8,8 +8,7 @@
 
 // From RTOW, ray.h
 // Both point3 and vec3 are Vector3 in our context
-class ray {
-    public:
+struct ray {
         ray() {}
         ray(const Vector3& origin, const Vector3& direction)
             : orig(origin), dir(normalize(direction))
@@ -21,27 +20,22 @@ class ray {
             this->dir = normalize(target - origin);
         }
 
-        Vector3 origin() const  { return orig; }
-        Vector3 direction() const { return dir; }
-        int srcObj() const { return src; }
-        void setSrc(int id) {src = id; }
-
         Vector3 at(double t) const {
             return orig + t*dir;
         }
 
-    private:
+
         int src = -1;    // Debug: which sphere (surface) it originates from
         Vector3 orig;
         Vector3 dir;
 };
 
 inline ray mirror_ray(ray& rayIn, Vector3 outNormal, Vector3& hitPt) {
-    if (dot(rayIn.direction(), outNormal) > 0.0) {
+    if (dot(rayIn.dir, outNormal) > 0.0) {
         
         return mirror_ray(rayIn, -outNormal, hitPt);
     }
-    Vector3 outDir = normalize(rayIn.direction() - 2*dot(rayIn.direction(),outNormal)*outNormal);
+    Vector3 outDir = normalize(rayIn.dir - 2*dot(rayIn.dir,outNormal)*outNormal);
     if (dot(outDir, outNormal) < 0.0) {
         throw std::runtime_error("OUT direction is incorrect");
     }
@@ -49,6 +43,12 @@ inline ray mirror_ray(ray& rayIn, Vector3 outNormal, Vector3& hitPt) {
         hitPt,      // origin
         outDir  // reflected dir
     );
+}
+
+inline Vector3 mirror_dir(const Vector3& in_dir, Vector3 normal_dir) {
+    assert(dot(in_dir, normal_dir) < 0.0 && 
+        "this function takes in in_dir as as opposite to inRay.dir");
+    return normalize(2 * dot(in_dir, normal_dir)*normal_dir - in_dir);
 }
 
 /**
@@ -65,8 +65,8 @@ inline ray mirror_ray(ray& rayIn, Vector3 outNormal, Vector3& hitPt) {
  * @return ray 
  */
 inline ray refract_ray(ray& rayIn, Vector3 outNormal, Vector3& hitPt, double eta_ratio) {
-    double cos_theta = dot(-rayIn.direction(), outNormal);
-    Vector3 r_out_perp = eta_ratio * (rayIn.direction() + cos_theta * outNormal);
+    double cos_theta = dot(-rayIn.dir, outNormal);
+    Vector3 r_out_perp = eta_ratio * (rayIn.dir + cos_theta * outNormal);
     Vector3 r_out_parallel = -sqrt(fabs(1.0 - length_squared(r_out_perp))) * outNormal;
     return ray(
         hitPt,
