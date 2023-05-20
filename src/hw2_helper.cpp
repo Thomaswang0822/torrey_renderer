@@ -1,7 +1,8 @@
 #include "hw2.h"
 
+using namespace hw2;
 
-bool isVisible(Vector3& shadingPt, Vector3& lightPos, Scene& scene) {
+bool hw2::isVisible(Vector3& shadingPt, Vector3& lightPos, Scene& scene) {
     double d = distance(shadingPt, lightPos);
     // shot ray from light to shadingPt
     ray lightRay(lightPos, shadingPt, true);
@@ -14,7 +15,7 @@ bool isVisible(Vector3& shadingPt, Vector3& lightPos, Scene& scene) {
 }
 
 
-Vector3 computeDiffuseColor(Scene& scene, Vector3 normal, 
+Vector3 hw2::computeDiffuseColor(Scene& scene, Vector3 normal, 
                     Vector3 shadingPt, Diffuse* diffuseMat) {
     Vector3 result = Vector3(0.0, 0.0, 0.0);
 
@@ -31,7 +32,7 @@ Vector3 computeDiffuseColor(Scene& scene, Vector3 normal,
         if (PointLight* ptLight = std::get_if<PointLight>(&light)) {
             l = normalize(ptLight->position - shadingPt);
             dsq = distance_squared(shadingPt, ptLight->position);
-            if (isVisible(shadingPt, ptLight->position, scene)) {
+            if (hw2::isVisible(shadingPt, ptLight->position, scene)) {
                 // abs(dot(normal, l)) can be replaced by using helper function below
                 // (incomingRayOutside(-l, normal))? dot(normal, -l):dot(normal, -l);
                 // but obviously it's unnecessary here.
@@ -50,7 +51,7 @@ Vector3 computeDiffuseColor(Scene& scene, Vector3 normal,
 }
 
 
-Vector3 computePixelColor(Scene& scene, ray& localRay, unsigned int recDepth)
+Vector3 hw2::computePixelColor(Scene& scene, ray& localRay, unsigned int recDepth)
 {
     // Step 1: detect hit
     Hit_Record rec;  // use to determine the closest hit
@@ -85,7 +86,7 @@ Vector3 computePixelColor(Scene& scene, ray& localRay, unsigned int recDepth)
     // Step 3: act according to Material (instead of Shape)
     if (Diffuse* diffuseMat = std::get_if<Diffuse>(&currMaterial)) {
         // no recursion, compute diffuse color
-        return computeDiffuseColor(scene, hitNormal, hitPt, diffuseMat);
+        return hw2::computeDiffuseColor(scene, hitNormal, hitPt, diffuseMat);
     }
     else if (Mirror* mirrorMat = std::get_if<Mirror>(&currMaterial)) {
         // mirror refect ray and do recursion
@@ -93,7 +94,7 @@ Vector3 computePixelColor(Scene& scene, ray& localRay, unsigned int recDepth)
         Vector3* mirrorColor = std::get_if<Vector3>(&mirrorMat->reflectance);
         assert(mirrorColor && "Mirror material has reflectance not Vec3 RGB");
         return *mirrorColor // color at current hitting pt
-            * computePixelColor(scene, rayOut, recDepth=recDepth-1);   // element-wise mutiply
+            * hw2::computePixelColor(scene, rayOut, recDepth=recDepth-1);   // element-wise mutiply
     }
     else {
         std::cout << "Material not Diffuse or Mirror; will implement later" 
@@ -106,7 +107,7 @@ Vector3 computePixelColor(Scene& scene, ray& localRay, unsigned int recDepth)
 
 
 
-bool RayIntersectsTriangle(ray localRay, 
+bool hw2::RayIntersectsTriangle(ray localRay, 
                            Triangle tri,
                            Real& dist,
                            Vector3& outIntersectionPoint,
@@ -152,7 +153,7 @@ bool RayIntersectsTriangle(ray localRay,
 }
 
 
-bool RayIntersectsAny_Naive(ray localRay, 
+bool hw2::RayIntersectsAny_Naive(ray localRay, 
                            std::vector<Triangle> tris,
                            Real& dist,  // should be inf when passed in
                            Vector3& outIntersectionPoint,
@@ -162,7 +163,7 @@ bool RayIntersectsAny_Naive(ray localRay,
     Vector3 currHitPos, currBaryC;
     // Brute-force: look at each triangle and update only if (hit && closer)
     for (Triangle tri : tris) {
-        if (RayIntersectsTriangle(localRay, tri, currT, currHitPos, currBaryC)) {
+        if (hw2::RayIntersectsTriangle(localRay, tri, currT, currHitPos, currBaryC)) {
             if (currT < dist) {
                 dist = currT;
                 outIntersectionPoint = Vector3(currHitPos);
@@ -174,7 +175,7 @@ bool RayIntersectsAny_Naive(ray localRay,
 }
 
 
-Vector3 bbox_color(vector<AABB> bboxes, ray& localRay) {
+Vector3 hw2::bbox_color(vector<AABB> bboxes, ray& localRay) {
     for (AABB bbox : bboxes) {
         if (bbox.hit(localRay, 0.0, infinity<double>())) {
             return Vector3(1.0, 1.0, 1.0);

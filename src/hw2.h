@@ -17,6 +17,8 @@ Image3 hw_2_5(const std::vector<std::string> &params);
 // const Real EPSILON = 1e-7;
 
 // Functions below are specific to hw2 and will not be used later
+namespace hw2 {
+
 
 bool RayIntersectsTriangle(ray localRay, 
                            Triangle tri,
@@ -53,3 +55,5 @@ Vector3 computePixelColor(Scene& scene, ray& localRay, unsigned int recDepth=MAX
 // Used ONLY in hw_2_4
 // hit box => (1,1,1), no hit => (0.5, 0.5, 0.5)
 Vector3 bbox_color(std::vector<AABB> bboxes, ray& localRay);
+
+}

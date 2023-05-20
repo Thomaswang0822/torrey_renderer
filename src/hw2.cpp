@@ -1,6 +1,7 @@
 #include "hw2.h"
 #include "print_scene.h"
 
+using namespace hw2;
 
 Image3 hw_2_1(const std::vector<std::string> &params) {
     // Homework 2.1: render a single triangle and outputs
