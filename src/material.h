@@ -117,14 +117,28 @@ struct Plastic {
     Real eta; // index of refraction
     Color reflectance;
 
-    inline Real get_F0() {
+    Real get_F0() {
         return pow( (eta - 1.0) / (eta + 1.0), 2.0 );
+    }
+
+    Vector3 compute_BRDF_diffuse(const Real& cosTerm, Hit_Record& rec) {
+        Vector3 Kd = eval_RGB(reflectance, rec.u, rec.v);
+        return Kd * std::max(cosTerm, 0.0) * c_INVPI;
     }
 };
 
 struct Phong {
     Color reflectance; // Ks
     Real exponent; // alpha
+
+    Vector3 compute_BRDF(const Real& cosTerm, Hit_Record& rec) {
+        Vector3 Ks = eval_RGB(reflectance, rec.u, rec.v);
+        return Ks * (exponent + 1.0) * c_INVTWOPI * pow(std::max(cosTerm, 0.0), exponent);
+    }
+
+    Real compute_PDF(const Real& cosTerm) {
+        return (exponent + 1.0) * c_INVTWOPI * pow(cosTerm, exponent);
+    }
 };
 
 struct BlinnPhong {

@@ -85,10 +85,9 @@ Vector3 radiance(Scene& scene, ray& localRay, BVH_node& root,
     Hit_Record rec;
     Shape* hitObj = nullptr;
     root.hit(localRay, EPSILON, infinity<Real>(), scene, rec, hitObj);
-    if (rec.dist > 1e9) {  // no hit
+    if (!hitObj) {  // no hit
         return scene.background_color;
     }
-    assert(hitObj && "Bug: hitObj is a nullptr even when a hit is detected.");
     
     // Step 2: Add Le to rendering equation (if it's a light)
     Vector3 L_emmision(0.0, 0.0, 0.0);
@@ -123,20 +122,33 @@ Vector3 radiance(Scene& scene, ray& localRay, BVH_node& root,
      */
     #pragma region one_sample_MIS
     // flip a coin
-    bool pickLight = next_pcg32_real<double>(rng) <= 0.0;
+    bool pickLight = next_pcg32_real<double>(rng) <= 0.5;
     Vector3 out_dir, brdfValue;
     Real brdf_PDF, light_PDF;
     Vector3 in_dir = -localRay.dir;
     ray outRay(rec.pos, Vector3(1.0, 0.0, 0.0));  // set dir to out_dir later
     if (pickLight) {
-        assert(false);
+        // this is no light to choose from -> nothing to do
+        if (scene.lights.size() == 0) {
+            return Vector3(0.0, 0.0, 0.0);
+        }
+
+        tie(out_dir, brdfValue, brdf_PDF, light_PDF) = Light_sample(scene, rec, currMaterial, rng, in_dir);
     }
     else {
-        tie(out_dir, brdfValue, brdf_PDF) = BRDF_sample(&currMaterial, rec, rng, in_dir);
+        tie(out_dir, brdfValue, brdf_PDF, light_PDF) = BRDF_sample(currMaterial, rec, rng, in_dir);
         outRay.dir = out_dir;
-        // "fake" choose a light
+        // "fake" choose a light: if no light, this is 0
         light_PDF = alternative_light_pdf(outRay, scene, root, rec.pos);
     }
+    
+    // uncomment this region AND change pickLight to false (by random <= 0.0)
+    // to turn off MIS
+    #pragma region hw_4_1-2
+    // return L_emmision + brdfValue * (1.0 / brdf_PDF) *
+    //         radiance(scene, outRay, root, rng, recDepth-1);
+    #pragma endregion hw_4_1-2
+
     // do recursion
     return L_emmision + brdfValue * (2.0 / (brdf_PDF + light_PDF)) *
             radiance(scene, outRay, root, rng, recDepth-1);
@@ -244,14 +256,17 @@ Vector3 sphereLight_contribution(Scene& scene, Hit_Record& rec, BVH_node& root,
 }
 
 
-Sample BRDF_sample(Material* currMaterial, Hit_Record& rec, 
+Sample BRDF_sample(Material& currMaterial, Hit_Record& rec, 
             pcg32_state& rng, const Vector3& in_dir)
 {
     // our return values
     Vector3 out_dir, brdfValue;
     Real pdf;
 
-    if (Diffuse* diffuseMat = get_if<Diffuse>(currMaterial)) {
+    // local var
+    Vector3 mir_dir;
+
+    if (Diffuse* diffuseMat = get_if<Diffuse>(&currMaterial)) {
         // HW4 UPDATE: path tracing Diffuse
         Basis basis = Basis::orthonormal_basis(rec.normal);
         Vector3 Kd = eval_RGB(diffuseMat->reflectance, rec.u, rec.v);
@@ -261,57 +276,53 @@ Sample BRDF_sample(Material* currMaterial, Hit_Record& rec,
         brdfValue = Kd * std::max(cosTerm, 0.0) * c_INVPI;
         pdf = cosTerm * c_INVPI;  // cosTerm / PI
 
-        return {out_dir, brdfValue, pdf};
+        return {out_dir, brdfValue, pdf, 0.0};
         
     }
-    else if (Plastic* plasticMat = std::get_if<Plastic>(currMaterial)) {
-        out_dir = mirror_dir(in_dir, rec.normal);
-        double cos_theta = dot(rec.normal, out_dir);
+    else if (Plastic* plasticMat = std::get_if<Plastic>(&currMaterial)) {
+        mir_dir = mirror_dir(in_dir, rec.normal);
+        double cos_theta = dot(rec.normal, mir_dir);
 
         // decide between mirror-like and diffuse-like
         double F = compute_SchlickFresnel(plasticMat->get_F0(), cos_theta);
         bool traceSpecular = next_pcg32_real<Real>(rng) < F;
         if (traceSpecular) {
-            return {out_dir, Vector3(1.0, 1.0, 1.0), 1.0};
+            return {mir_dir, Vector3(1.0, 1.0, 1.0), 1.0, 0.0};
         } else {
             // same as diffuse
             Basis basis = Basis::orthonormal_basis(rec.normal);
-            Vector3 Kd = eval_RGB(plasticMat->reflectance, rec.u, rec.v);
-            // update out_dir
+            // sample an out_dir
             out_dir = dir_cos_sample(rng, basis);
             Real cosTerm = dot(rec.normal, out_dir);
-            brdfValue = Kd * std::max(cosTerm, 0.0) * c_INVPI;
-            pdf = cosTerm * c_INVPI;  // cosTerm / PI
+            brdfValue = plasticMat->compute_BRDF_diffuse(cosTerm, rec);
+            pdf = cosTerm * c_INVPI * (1.0-F);  // cosTerm / PI
 
-            return {out_dir, brdfValue, pdf};
+            return {out_dir, brdfValue, pdf, 0.0};
         }
     }
-    else if (Phong* phongMat = get_if<Phong>(currMaterial)) {
+    else if (Phong* phongMat = get_if<Phong>(&currMaterial)) {
         // sample dir first, this time around mirror ray direction
-        out_dir = mirror_dir(in_dir, rec.normal);
-        Basis basis = Basis::orthonormal_basis(out_dir);
-        Vector3 sample_dir = dir_Phong_sample(rng, basis, phongMat->exponent);
+        mir_dir = mirror_dir(in_dir, rec.normal);
+        Basis basis = Basis::orthonormal_basis(mir_dir);
+        out_dir = dir_Phong_sample(rng, basis, phongMat->exponent);
 
         // check dot(hitting normal, sample direction)
-        if (dot(rec.normal, sample_dir) <=0 ) {
+        if (dot(rec.normal, out_dir) <=0 ) {
             // This could happen because the sample direction is not around 
             // hitting normal anymore
-            return {out_dir, Vector3(0.0, 0.0, 0.0), 1.0};
+            return {out_dir, Vector3(0.0, 0.0, 0.0), 1.0, 0.0};
         }
 
         // compute Phong BRDF
-        Vector3 Ks = eval_RGB(phongMat->reflectance, rec.u, rec.v);
-        Real cosTerm = dot(out_dir, sample_dir);
-        brdfValue = Ks * (phongMat->exponent + 1.0) * c_INVTWOPI *
-                pow(std::max(cosTerm, 0.0), phongMat->exponent);
+        Real cosTerm = dot(mir_dir, out_dir);
+        brdfValue = phongMat->compute_BRDF(cosTerm, rec);
 
         // compute Phong pdf
-        pdf = (phongMat->exponent + 1.0) * c_INVTWOPI *
-                pow(cosTerm, phongMat->exponent);
+        pdf = phongMat->compute_PDF(cosTerm);
 
-        return {out_dir, brdfValue, pdf};
+        return {out_dir, brdfValue, pdf, 0.0};
     }
-    else if (BlinnPhong* blphMat = get_if<BlinnPhong>(currMaterial)) {
+    else if (BlinnPhong* blphMat = get_if<BlinnPhong>(&currMaterial)) {
         // sample half-vector h around shading normal
         /**
          * We use the Phong sampling function because the procedure,
@@ -326,16 +337,16 @@ Sample BRDF_sample(Material* currMaterial, Hit_Record& rec,
         out_dir = mirror_dir(in_dir, sample_h);
         // check dot(hitting normal, out_dir) 
         if (dot(rec.normal, out_dir) <= 0.0) {
-            return {out_dir, Vector3(0.0, 0.0, 0.0), 1.0};
+            return {out_dir, Vector3(0.0, 0.0, 0.0), 1.0, 0.0};
         }
         // compute BlinnPhong BRDF
         brdfValue = blphMat->compute_BRDF(sample_h, out_dir, rec);
         // compute BlinnPhong PDF
         pdf = blphMat->compute_PDF(sample_h, out_dir, rec);
 
-        return {out_dir, brdfValue, pdf};
+        return {out_dir, brdfValue, pdf, 0.0};
     }
-    else if (BlinnPhongMicrofacet* micro_blphMat = get_if<BlinnPhongMicrofacet>(currMaterial)) {
+    else if (BlinnPhongMicrofacet* micro_blphMat = get_if<BlinnPhongMicrofacet>(&currMaterial)) {
         // sample half vector h to get out_dir AND estimate D(h)
         Basis basis = Basis::orthonormal_basis(rec.normal);
         Vector3 sample_h = dir_Phong_sample(rng, basis, micro_blphMat->exponent);
@@ -343,7 +354,7 @@ Sample BRDF_sample(Material* currMaterial, Hit_Record& rec,
         out_dir = mirror_dir(in_dir, sample_h);
         // check dot(hitting normal, out_dir) 
         if (dot(rec.normal, out_dir) <= 0.0) {
-            return {out_dir, Vector3(0.0, 0.0, 0.0), 1.0};
+            return {out_dir, Vector3(0.0, 0.0, 0.0), 1.0, 0.0};
         }
 
         // compute BlinnPhongMicrofacet BRDF;
@@ -354,19 +365,134 @@ Sample BRDF_sample(Material* currMaterial, Hit_Record& rec,
         // compute BlinnPhongMicrofacet PDF;
         pdf = micro_blphMat->compute_PDF(sample_h, out_dir, rec);
 
-        return {out_dir, brdfValue, pdf};
+        return {out_dir, brdfValue, pdf, 0.0};
     }
     else {
         Error("Material Unknown; will implement later");
-        return {out_dir, Vector3(0.0, 0.0, 0.0), 1.0}; 
+        return {out_dir, Vector3(0.0, 0.0, 0.0), 1.0, 0.0}; 
     }
+}
+
+
+Sample Light_sample(Scene& scene, Hit_Record& rec, Material& currMaterial,
+            pcg32_state& rng, const Vector3& in_dir)
+{
+    // our return values
+    Vector3 out_dir, brdfValue;
+    Real pdf_BRDF = 0.0; Real pdf_Light = 0.0;
+
+    // local variables
+    Vector3 light_pos;
+    Real dsq;  // d^2
+    Vector3 Kd, I; // Kd and lightIntensity
+    Vector3 h; // half-vector for BlinnPhong and Microfacet useage
+
+    // uniformly pick a light
+    int n = scene.lights.size();
+    int lightId = static_cast<int>(n * next_pcg32_real<double>(rng));
+    Light& light = scene.lights[lightId];
+    assert(!get_if<PointLight>(&light) && "One-sample MIS doesn't support point Light.");
+    DiffuseAreaLight* areaLight = get_if<DiffuseAreaLight>(&light);
+    assert(areaLight && "areaLight is a nullptr.");
+
+    // get the shape of the light
+    const Shape* lightObj = &scene.shapes[areaLight->shape_id];
+    I = areaLight->radiance;  
+    // sample a point and compute related values according to Triangle / Sphere
+    if (const Sphere* sph = get_if<Sphere>(lightObj)) {
+        Vector3 cp = rec.pos - sph->position;
+        assert(length(cp) > sph->radius
+            && "hit position is inside a sphere");
+        // spherical cone area: 2PI * (1-cos_theta)
+        Real cos_theta_max = sph->radius / distance(rec.pos, sph->position);
+        Real area = c_TWOPI * (1.0 - cos_theta_max);
+        // do cone sampling
+        light_pos = Sphere_sample_cone(sph, rng, cos_theta_max, normalize(cp));
+
+        // write return values
+        out_dir = normalize(light_pos - rec.pos);  // 1
+        Real positive_cosine = abs(dot(out_dir, sph->normal_at(light_pos)));
+        dsq = distance_squared(light_pos, rec.pos);
+        // probability of choosing this light is 1/n
+        pdf_Light = dsq / (area * positive_cosine * n);  // 4
+        
+    } else if (const Triangle* leading_tri = get_if<Triangle>(lightObj)) {
+        // pick a Triangle from the mesh
+        TriangleMesh& mesh = scene.meshes[leading_tri->mesh_id];
+        int local_idx = mesh.which_tri(next_pcg32_real<double>(rng));  // index in the mesh
+        // shape_id points to the first (0-th) triangle in the mesh
+        Triangle* tri = get_if<Triangle>(&scene.shapes[areaLight->shape_id + local_idx]);
+
+        // pick a point from the Triangle
+        light_pos = Triangle_sample(tri, rng);
+
+        // write return values
+        out_dir = normalize(light_pos - rec.pos);  // 1
+        Real positive_cosine = abs(dot(out_dir, tri->normal));
+        dsq = distance_squared(light_pos, rec.pos);
+        // I. probability of choosing this mesh light is 1/n
+        // II. probability of choosing this triangle from the mesh is the area/total_area ratio
+        // III. probability of choosing this point from the triangle is 1/area
+        // put together, we need 1 / (total area * n)
+        Real total_area = scene.meshes[tri->mesh_id].totalArea;
+        pdf_Light =  dsq / (total_area * positive_cosine * n);  // 4 
+    }
+
+    
+    // need dot(rec.normal, sample_dir) check
+    Real cosTerm = dot(rec.normal, out_dir);
+    bool isPossible = cosTerm > 0;
+    // for BlinnPhong and microfacet
+    h = normalize(in_dir + out_dir);
+
+    // switch material, calculate brdfValue (light) and pdf_BRDF
+    if (Diffuse* diffuseMat = get_if<Diffuse>(&currMaterial)) {
+        Kd = eval_RGB(diffuseMat->reflectance, rec.u, rec.v);
+        brdfValue = Kd * I * c_INVPI;  // 2
+        pdf_BRDF = isPossible? cosTerm * c_INVPI : 0.0;  // 3
+    }
+    else if (Plastic* plasticMat = std::get_if<Plastic>(&currMaterial)) {
+        Kd = eval_RGB(plasticMat->reflectance, rec.u, rec.v);
+        brdfValue = Kd * I * c_INVPI;  // 2
+
+        // for plastic, we "do the sample" with Prob 1-F
+        Real cos_theta = dot(rec.normal, in_dir);
+        double F = compute_SchlickFresnel(plasticMat->get_F0(), cos_theta);
+        pdf_BRDF = isPossible? cosTerm * c_INVPI * (1.0-F) : 0;  // 3
+    }
+    else if (Phong* phongMat = get_if<Phong>(&currMaterial)) {
+        Kd = eval_RGB(phongMat->reflectance, rec.u, rec.v);
+        brdfValue = Kd * I * c_INVPI;  // 2
+
+        // Phong needs special check because it samples around mir_dir
+        Vector3 mir_dir = mirror_dir(in_dir, rec.normal);
+        cosTerm = dot(mir_dir, out_dir);
+        isPossible = isPossible && (cosTerm > 0);
+        pdf_BRDF = isPossible? phongMat->compute_PDF(cosTerm) : 0.0;  // 3
+    }
+    else if (BlinnPhong* blphMat = get_if<BlinnPhong>(&currMaterial)) {
+        Kd = eval_RGB(blphMat->reflectance, rec.u, rec.v);
+        brdfValue = Kd * I * c_INVPI;  // 2
+        pdf_BRDF = isPossible? blphMat->compute_PDF(h, out_dir, rec) : 0.0;  // 3
+    }
+    else if (BlinnPhongMicrofacet* micro_blphMat = get_if<BlinnPhongMicrofacet>(&currMaterial)) {
+        Kd = eval_RGB(micro_blphMat->reflectance, rec.u, rec.v);
+        brdfValue = Kd * I * c_INVPI;  // 2
+        pdf_BRDF = isPossible? micro_blphMat->compute_PDF(h, out_dir, rec) : 0.0;  // 3
+    }
+    else {
+        Error("Shading point UNKNOWN material.");
+    }
+
+
+    return {out_dir, brdfValue, pdf_BRDF, pdf_Light};
 }
 
 
 Real alternative_light_pdf(ray& outRay, Scene& scene, BVH_node& root,  // determine the light
             const Vector3& shadingPos)
 {
-    // Step 1: detect hit. 
+    // detect hit. 
     Hit_Record rec;
     Shape* lightObj = nullptr;
     root.hit(outRay, EPSILON, infinity<Real>(), scene, rec, lightObj);
@@ -397,4 +523,6 @@ Real alternative_light_pdf(ray& outRay, Scene& scene, BVH_node& root,  // determ
         return dsq / (total_area * positive_cosine * n);   
     }
     
+    Error("Should never reach here: unknown lightObj");
+    return 0.0;
 }

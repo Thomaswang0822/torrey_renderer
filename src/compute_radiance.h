@@ -59,13 +59,41 @@ Vector3 sphereLight_contribution(Scene& scene, Hit_Record& rec, BVH_node& root,
             int ct=1);
 
 
-using Sample = tuple<Vector3, Vector3, Real>;  // out_dir (w_o in formula), BRDF_value, pdf
+// out_dir (w_o in formula), BRDF_value, pdf_BRDF, pdf_Light
+using Sample = tuple<Vector3, Vector3, Real, Real>;  
 
-Sample BRDF_sample(Material* currMaterial, Hit_Record& rec, 
+/**
+ * @brief Perform BRDF sampling according to material
+ * 
+ * @note since using out_dir to get pdf_Light is non-trivial,
+ *   we isolate its calculation into alternative_light_pdf() below.
+ *   Thus, the 4-th return value is always 0.0
+ * 
+ * @note When dot product check fails, BRDF_value is 0, and last 2 pdf don't matter.
+ * @return Sample 
+ */
+Sample BRDF_sample(Material& currMaterial, Hit_Record& rec, 
             pcg32_state& rng, const Vector3& in_dir);
 
-Sample Light_sample();
+/**
+ * @brief Perform Light sampling
+ * 
+ * @note Since finding the pdf_BRDF given the out_dir is a trivial task, 
+ *   it will be computed here and returned in the 4-th return value
+ * 
+ * @note light_BRDF = Kd * I / PI, need to look at material anyway
+ * 
+ * @return Sample 
+ */
+Sample Light_sample(Scene& scene, Hit_Record& rec, Material& currMaterial,
+            pcg32_state& rng, const Vector3& in_dir);
 
-// For one-sample MIS usage
+
+/**
+ * @brief For one-sample MIS usage: there are some additional work after
+ *   we obtain a direction from BRDF sampling
+ * 
+ * @return Real 
+ */
 Real alternative_light_pdf(ray& outRay, Scene& scene, BVH_node& root,  // determine the light
-            const Vector3& hitPos);
+            const Vector3& shadingPos);
