@@ -9,9 +9,10 @@
  * 
  */
 
+using namespace std;
 
 // BVH_RaySceneHit() is actually BVH_node::hit
-bool isVisible(Vector3& shadingPt, Vector3& lightPos, Scene& scene, BVH_node& root);
+bool isVisible(const Vector3& shadingPt, Vector3& lightPos, Scene& scene, BVH_node& root);
 Vector3 diffuse_radiance(Scene& scene, Hit_Record& rec, const Color& refl, 
                         BVH_node& root, const Shape* hitObj, pcg32_state& rng);
 Vector3 radiance(Scene& scene, ray& localRay, BVH_node& root, 
@@ -56,3 +57,15 @@ Vector3 sphereLight_contribution(Scene& scene, Hit_Record& rec, BVH_node& root,
             const Vector3& Kd, const Vector3& I,
             pcg32_state& rng, 
             int ct=1);
+
+
+using Sample = tuple<Vector3, Vector3, Real>;  // out_dir (w_o in formula), BRDF_value, pdf
+
+Sample BRDF_sample(Material* currMaterial, Hit_Record& rec, 
+            pcg32_state& rng, const Vector3& in_dir);
+
+Sample Light_sample();
+
+// For one-sample MIS usage
+Real alternative_light_pdf(ray& outRay, Scene& scene, BVH_node& root,  // determine the light
+            const Vector3& hitPos);

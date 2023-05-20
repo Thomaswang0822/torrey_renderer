@@ -129,6 +129,10 @@ struct Sphere : public ShapeBase {
         v = theta / c_PI;
     }
 
+    Vector3 normal_at(Vector3 location) const {
+        return normalize(location - position);
+    }
+
 };
 
 struct TriangleMesh : public ShapeBase {
