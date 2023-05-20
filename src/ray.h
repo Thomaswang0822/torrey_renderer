@@ -46,8 +46,10 @@ inline ray mirror_ray(ray& rayIn, Vector3 outNormal, Vector3& hitPt) {
 }
 
 inline Vector3 mirror_dir(const Vector3& in_dir, Vector3 normal_dir) {
-    assert(dot(in_dir, normal_dir) < 0.0 && 
-        "this function takes in in_dir as as opposite to inRay.dir");
+    if(dot(in_dir, normal_dir) < 0.0) {
+        return mirror_dir(in_dir, -normal_dir);
+    }
+        
     return normalize(2 * dot(in_dir, normal_dir)*normal_dir - in_dir);
 }
 
