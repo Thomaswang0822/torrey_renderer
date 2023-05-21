@@ -62,6 +62,7 @@ Scene::Scene(const ParsedScene &scene) :
             );
             cdf.back() = 1.0;  // avoid 0-probability numerical issue
             meshes[tri_mesh_count].areaCDF = cdf;
+            meshes[tri_mesh_count].totalArea = totalArea;
 
             tri_mesh_count++;
             shape_id_map.push_back(currIdx);
