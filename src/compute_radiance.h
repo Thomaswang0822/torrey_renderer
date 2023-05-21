@@ -85,8 +85,8 @@ Sample BRDF_sample(Material& currMaterial, Hit_Record& rec,
  * 
  * @return Sample 
  */
-Sample Light_sample(Scene& scene, Hit_Record& rec, Material& currMaterial,
-            pcg32_state& rng, const Vector3& in_dir);
+Sample Light_sample(Scene& scene, Hit_Record& rec, BVH_node& root,
+            Material& currMaterial, pcg32_state& rng, const Vector3& in_dir);
 
 
 /**
