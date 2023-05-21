@@ -416,7 +416,7 @@ Sample Light_sample(Scene& scene, Hit_Record& rec, BVH_node& root,
             && "hit position is inside a sphere");
         // spherical cone area: 2PI * (1-cos_theta)
         Real cos_theta_max = sph->radius / distance(rec.pos, sph->position);
-        Real area = c_TWOPI * (1.0 - cos_theta_max);
+        Real area = c_TWOPI * (1.0 - cos_theta_max) * sph->radius * sph->radius;
         // do cone sampling
         light_pos = Sphere_sample_cone(sph, rng, cos_theta_max, normalize(cp));
 
@@ -551,7 +551,7 @@ Real alternative_light_pdf(ray& outRay, Scene& scene, BVH_node& root,  // determ
     if (const Sphere *sph = get_if<Sphere>(lightObj)) {
         // spherical cone area: 2PI * (1-cos_theta)
         Real cos_theta_max = sph->radius / distance(shadingPos, sph->position);
-        Real area = c_TWOPI * (1.0 - cos_theta_max);
+        Real area = c_TWOPI * (1.0 - cos_theta_max) * sph->radius * sph->radius;
         Real positive_cosine = abs(dot(out_dir, sph->normal_at(light_pos)));
         // probability of choosing this light is 1/n
         return dsq / (area * positive_cosine * n);
