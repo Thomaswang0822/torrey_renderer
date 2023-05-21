@@ -122,7 +122,7 @@ Vector3 radiance(Scene& scene, ray& localRay, BVH_node& root,
      */
     #pragma region one_sample_MIS
     // flip a coin
-    bool pickLight = next_pcg32_real<double>(rng) <= 0.0;
+    bool pickLight = next_pcg32_real<double>(rng) <= 0.5;
     Vector3 out_dir, brdfValue;
     Real brdf_PDF, light_PDF;
     Vector3 in_dir = -localRay.dir;
@@ -153,8 +153,8 @@ Vector3 radiance(Scene& scene, ray& localRay, BVH_node& root,
     // uncomment this region AND change pickLight to false (by random <= 0.0)
     // to turn off MIS
     #pragma region hw_4_1-2
-    return L_emmision + brdfValue * (1.0 / brdf_PDF) *
-            radiance(scene, outRay, root, rng, recDepth-1);
+    // return L_emmision + brdfValue * (1.0 / brdf_PDF) *
+    //         radiance(scene, outRay, root, rng, recDepth-1);
     #pragma endregion hw_4_1-2
 
     // return L_emmision + brdfValue * (1.0 / light_PDF) *
@@ -430,10 +430,10 @@ Sample Light_sample(Scene& scene, Hit_Record& rec, BVH_node& root,
 
         // write return values
         out_dir = normalize(light_pos - rec.pos);  // 1
-        // Real positive_cosine = abs(dot(out_dir, sph->normal_at(light_pos)));
+        Real positive_cosine = abs(dot(out_dir, sph->normal_at(light_pos)));
         dsq = distance_squared(light_pos, rec.pos);
         // probability of choosing this light is 1/n
-        pdf_Light = 1.0 / (area * n);  // 4
+        pdf_Light = dsq / (area * positive_cosine * n);  // 4
         
     } else if (const Triangle* leading_tri = get_if<Triangle>(lightObj)) {
         // pick a Triangle from the mesh
@@ -445,16 +445,24 @@ Sample Light_sample(Scene& scene, Hit_Record& rec, BVH_node& root,
         // pick a point from the Triangle
         light_pos = Triangle_sample(tri, rng);
 
+        // shadow test
+        if (!isVisible(rec.pos, light_pos, scene, root)) {
+            // cout << rec.pos << "\t" << light_pos << endl;
+            // brdfValue will be 0, pdf will not matter
+            return {normalize(light_pos - rec.pos), Vector3(0.0, 0.0, 0.0),
+                1.0, 1.0};
+        }
+
         // write return values
         out_dir = normalize(light_pos - rec.pos);  // 1
-        // Real positive_cosine = abs(dot(out_dir, tri->normal));
+        Real positive_cosine = abs(dot(out_dir, tri->normal));
         dsq = distance_squared(light_pos, rec.pos);
         // I. probability of choosing this mesh light is 1/n
         // II. probability of choosing this triangle from the mesh is the area/total_area ratio
         // III. probability of choosing this point from the triangle is 1/area
         // put together, we need 1 / (total area * n)
         Real total_area = scene.meshes[tri->mesh_id].totalArea;
-        pdf_Light =  1.0 / (total_area * n);  // 4 
+        pdf_Light =  dsq / (total_area * positive_cosine * n);  // 4 
     }
 
     
@@ -467,12 +475,13 @@ Sample Light_sample(Scene& scene, Hit_Record& rec, BVH_node& root,
     // switch material, calculate brdfValue (light) and pdf_BRDF
     if (Diffuse* diffuseMat = get_if<Diffuse>(&currMaterial)) {
         Kd = eval_RGB(diffuseMat->reflectance, rec.u, rec.v);
-        brdfValue = Kd * std::max(cosTerm, 0.0) * c_INVPI / dsq;  // 2
+        brdfValue = Kd * std::max(cosTerm, 0.0) * c_INVPI;  // 2
         pdf_BRDF = std::max(cosTerm, 0.0) * c_INVPI;  // 3
     }
     else if (Plastic* plasticMat = std::get_if<Plastic>(&currMaterial)) {
+        assert(false && "Disable light sampling plastic");
         Kd = eval_RGB(plasticMat->reflectance, rec.u, rec.v);
-        brdfValue = Kd * std::max(cosTerm, 0.0) * c_INVPI / dsq;  // 2
+        brdfValue = Kd * std::max(cosTerm, 0.0) * c_INVPI;  // 2
 
         // for plastic, we "do the sample" with Prob 1-F
         Real cos_theta = dot(rec.normal, in_dir);
