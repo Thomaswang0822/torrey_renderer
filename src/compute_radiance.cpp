@@ -479,13 +479,27 @@ Sample Light_sample(Scene& scene, Hit_Record& rec, BVH_node& root,
         pdf_BRDF = std::max(cosTerm, 0.0) * c_INVPI;  // 3
     }
     else if (Plastic* plasticMat = std::get_if<Plastic>(&currMaterial)) {
-        assert(false && "Disable light sampling plastic");
-        Kd = eval_RGB(plasticMat->reflectance, rec.u, rec.v);
-        brdfValue = Kd * std::max(cosTerm, 0.0) * c_INVPI;  // 2
+        /**
+         * @brief Even inside this Sample function, we randomly decide b/w
+         * specular or diffuse part.
+         * 
+         * If we decide to trace specular, we need to make sure those
+         * BRDF value and pdf work as if we are not doing sampling at all.
+         * 
+         */
 
         // for plastic, we "do the sample" with Prob 1-F
+        Vector3 mir_dir = mirror_dir(in_dir, rec.normal);
         Real cos_theta = dot(rec.normal, in_dir);
         double F = compute_SchlickFresnel(plasticMat->get_F0(), cos_theta);
+        bool traceSpecular = next_pcg32_real<Real>(rng) < F;
+        if (traceSpecular) {
+            return {mir_dir, {1.0, 1.0, 1.0}, F, pdf_Light};
+        }
+         
+        // assert(false && "Disable light sampling plastic");
+        Kd = eval_RGB(plasticMat->reflectance, rec.u, rec.v);
+        brdfValue = Kd * std::max(cosTerm, 0.0) * c_INVPI;  // 2
         pdf_BRDF = isPossible? cosTerm * c_INVPI * (1.0-F) : 0;  // 3
     }
     else if (Phong* phongMat = get_if<Phong>(&currMaterial)) {
