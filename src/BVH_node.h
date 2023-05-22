@@ -108,5 +108,6 @@ size_t SAH_split(std::vector<std::shared_ptr<Shape>>& objects,
 AABB rangeAABB(std::vector<std::shared_ptr<Shape>>& objects,
         size_t start, size_t end);
 
-/* ### BVH-version ### */
 
+// BVH_RaySceneHit() is actually BVH_node::hit
+bool isVisible(const Vector3& shadingPt, Vector3& lightPos, Scene& scene, BVH_node& root);

@@ -11,12 +11,28 @@
 
 using namespace std;
 
-// BVH_RaySceneHit() is actually BVH_node::hit
-bool isVisible(const Vector3& shadingPt, Vector3& lightPos, Scene& scene, BVH_node& root);
-Vector3 diffuse_radiance(Scene& scene, Hit_Record& rec, const Color& refl, 
+
+/**
+ * @brief Given a diffuse surface (or diffuse component of Plastic), compute the contribution
+ *   from all lights in the scene.
+ * @note used BEFORE path tracing (hw_4_1)
+ * 
+ * @param refl Color of the diffuse material at shading point
+ * @return Vector3 
+ */
+Vector3 BVH_DiffuseColor(Scene& scene, Hit_Record& rec, const Color& refl, 
                         BVH_node& root, const Shape* hitObj, pcg32_state& rng);
-Vector3 radiance(Scene& scene, ray& localRay, BVH_node& root, 
+
+/**
+ * @brief Compute the total radiance (also the RGB value) received from a ray.
+ *   The BRDF and corresponding pdf will be chosen according to the material
+ * @note used BEFORE MIS path tracing (hw_4_3)
+ * 
+ * @return Vector3 
+ */
+Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node& root, 
                         pcg32_state& rng, unsigned int recDepth=MAX_DEPTH);
+
 
 /**
  * @brief Compute the total SCALED contribution from an area-light TriangleMesh.
@@ -59,8 +75,14 @@ Vector3 sphereLight_contribution(Scene& scene, Hit_Record& rec, BVH_node& root,
             int ct=1);
 
 
+#pragma region PATH_TRACING
 // out_dir (w_o in formula), BRDF_value, pdf_BRDF, pdf_Light
 using Sample = tuple<Vector3, Vector3, Real, Real>;  
+
+
+Vector3 radiance(Scene& scene, ray& localRay, BVH_node& root, 
+                        pcg32_state& rng, unsigned int recDepth=MAX_DEPTH);
+
 
 /**
  * @brief Perform BRDF sampling according to material
@@ -97,3 +119,5 @@ Sample Light_sample(Scene& scene, Hit_Record& rec, BVH_node& root,
  */
 Real alternative_light_pdf(ray& outRay, Scene& scene, BVH_node& root,  // determine the light
             const Vector3& shadingPos);
+
+#pragma endregion PATH_TRACING

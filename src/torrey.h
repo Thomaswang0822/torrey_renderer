@@ -36,7 +36,7 @@ const Real c_INVFOURPI = Real(1.0) / c_FOURPI;
 const Real c_PIOVERTWO = Real(0.5) * c_PI;
 const Real c_PIOVERFOUR = Real(0.25) * c_PI;
 
-const unsigned int MAX_DEPTH = 10;    // defined in hw1.h
+const unsigned int MAX_DEPTH = 50;    // maximum recursion depth
 const Real EPSILON = 1e-7;
 
 template <typename T>

@@ -275,3 +275,14 @@ AABB rangeAABB(std::vector<std::shared_ptr<Shape>>& objects,
 }
 
 
+/* ### BVH-version ### */
+bool isVisible(const Vector3& shadingPt, Vector3& lightPos, Scene& scene, BVH_node& root) {
+    double d = distance(shadingPt, lightPos);
+    // shot ray from light to shadingPt
+    ray lightRay(lightPos, shadingPt, true);
+    // test hitting point with BVH
+    Hit_Record rec;
+    Shape* hitObj = nullptr;
+    // hit => not visible (shadow)
+    return !root.hit(lightRay, EPSILON, (1-EPSILON) * d, scene, rec, hitObj);
+}
