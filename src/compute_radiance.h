@@ -77,7 +77,9 @@ Vector3 sphereLight_contribution(Scene& scene, Hit_Record& rec, BVH_node& root,
 
 #pragma region PATH_TRACING
 // out_dir (w_o in formula), BRDF_value, pdf_BRDF, pdf_Light
-using Sample = tuple<Vector3, Vector3, Real, Real>;  
+using Sample = tuple<Vector3, Vector3, Real, Real>;
+// out_dir, BRDF_value, pdf_light
+using LightSample = tuple<Vector3, Vector3, Real>; 
 
 
 Vector3 radiance(Scene& scene, ray& localRay, BVH_node& root, 
@@ -119,5 +121,54 @@ Sample Light_sample(Scene& scene, Hit_Record& rec, BVH_node& root,
  */
 Real alternative_light_pdf(ray& outRay, Scene& scene, BVH_node& root,  // determine the light
             const Vector3& shadingPos);
+
+
+/**
+ * @brief This is a rewrite of the recursive function radiance().
+ *   The iterative version can better accomodate Russian Roulette termination.
+ * 
+ * @ref It is based on PBRT book chapter 14.5.4
+ * 
+ * @param recDepth 
+ * @return Vector3 
+ */
+Vector3 radiance_iterative(Scene& scene, ray& localRay, BVH_node& root, 
+        pcg32_state& rng, unsigned int recDepth=MAX_DEPTH);
+
+
+Vector3 sample_oneLight_contribution(Scene& scene, Hit_Record& rec, 
+        BVH_node& root, pcg32_state& rng,
+        Material& mat, const Vector3& in_dir);
+
+
+LightSample arealight_sample(Scene& scene, Hit_Record& rec, BVH_node& root, DiffuseAreaLight* areaLight,
+            Material& currMaterial, pcg32_state& rng, const Vector3& in_dir);
+
+
+Vector3 compute_BRDF(Material& mat, const Vector3& in_dir,
+            const Vector3& out_dir, Hit_Record& rec);
+
+
+inline bool closeToZero(Vector3& v) {
+    return length_squared(v) < 1e-4;
+}
+
+inline bool closeToZero(Real& x) {
+    return abs(x) < 1e-6;
+}
+
+/**
+ * @brief Russian Roulette uses the luminance of a color to decide
+ *     termination. The approach in PBRT is too complex. I found this
+ *     one-formula instead:
+ * 
+ * @ref https://stackoverflow.com/a/596243
+ * 
+ * @param rgb 
+ * @return double 
+ */
+inline double Luminance(Vector3& rgb) {
+    return 0.2126*rgb.x + 0.7152*rgb.y + 0.0722*rgb.z;
+}
 
 #pragma endregion PATH_TRACING
