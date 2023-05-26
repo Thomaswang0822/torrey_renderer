@@ -535,6 +535,7 @@ Sample BRDF_sample(Material& currMaterial, Hit_Record& rec,
         // sample half vector h to get out_dir AND estimate D(h)
         Basis basis = Basis::orthonormal_basis(rec.normal);
         Vector3 sample_h = dir_Phong_sample(rng, basis, micro_blphMat->exponent);
+        // Vector3 sample_h = dir_GGX_sample(rng, basis, micro_blphMat->exponent);
 
         // reflect in_dir over h to get out_dir
         out_dir = mirror_dir(in_dir, sample_h);
@@ -545,11 +546,12 @@ Sample BRDF_sample(Material& currMaterial, Hit_Record& rec,
 
         // compute BlinnPhongMicrofacet BRDF;
         // note: in_dir w_i should align with shading normal
-        // brdfValue = micro_blphMat->compute_BRDF(sample_h, in_dir, out_dir, rec);
-        brdfValue = micro_blphMat->compute_BRDF_GGX(sample_h, in_dir, out_dir, rec);
+        brdfValue = micro_blphMat->compute_BRDF(sample_h, in_dir, out_dir, rec);
+        // brdfValue = micro_blphMat->compute_BRDF_GGX(sample_h, in_dir, out_dir, rec);
         
         // compute BlinnPhongMicrofacet PDF;
         pdf = micro_blphMat->compute_PDF(sample_h, out_dir, rec);
+        // pdf = micro_blphMat->compute_PDF_GGX(sample_h, out_dir, rec);
 
         return {out_dir, brdfValue, pdf, 0.0};
     }
@@ -696,9 +698,10 @@ Sample Light_sample(Scene& scene, Hit_Record& rec, BVH_node& root,
     }
     else if (BlinnPhongMicrofacet* micro_blphMat = get_if<BlinnPhongMicrofacet>(&currMaterial)) {
         Kd = eval_RGB(micro_blphMat->reflectance, rec.u, rec.v);
-        // brdfValue = micro_blphMat->compute_BRDF(h, in_dir, out_dir, rec);  // 2
-        brdfValue = micro_blphMat->compute_BRDF_GGX(h, in_dir, out_dir, rec);  // 2
-        pdf_BRDF = isPossible? micro_blphMat->compute_PDF(h, out_dir, rec) : 0.0;  // 3
+        brdfValue = micro_blphMat->compute_BRDF(h, in_dir, out_dir, rec);  // 2
+        pdf_BRDF = isPossible? micro_blphMat->compute_PDF(h, out_dir, rec) : 0.0;
+        // brdfValue = micro_blphMat->compute_BRDF_GGX(h, in_dir, out_dir, rec);  // 2
+        // pdf_BRDF = isPossible? micro_blphMat->compute_PDF_GGX(h, out_dir, rec) : 0.0;  // 3
     }
     else {
         Error("Shading point UNKNOWN material.");
@@ -834,9 +837,11 @@ Vector3 sample_oneLight_contribution(Scene& scene, Hit_Record& rec,
         Material& mat, const Vector3& in_dir)
 {
     // our return values: brdf * L(deterministic) / pdf_light
-    Vector3 brdfValue(0.0, 0.0, 0.0);  // safely return 0 when occuluded
-    Vector3 L(0.0, 0.0, 0.0);
-    Real pdf_Light = 1.0;
+    Vector3 Ld(0.0, 0.0, 0.0);
+    Vector3 brdfValue(0.0, 0.0, 0.0);  // safely return 0 when occ            out_dir = normalize(rec_light.pos - rec.pos);uluded
+    Vector3 Li(0.0, 0.0, 0.0);
+    Real pdf_Light = 1.0; Real pdf_BRDF = 1.0;
+    Real weight;  // balance heuristic
 
     // uniformly pick a light, which can be 
     // [point light, Sphere area light, TriangleMesh area light]
@@ -847,25 +852,26 @@ Vector3 sample_oneLight_contribution(Scene& scene, Hit_Record& rec,
 
     // compute accordingly
     Vector3 out_dir;
-    Vector3 l;  
     Real dsq;  // distance squared: shadingPt to light position
 
     // contribution is:
     //    BRDF * L when we are doing importance sampling and tracing ray
     //    BRDF * I * max(dot(-n_x, l), 0) / d^2 * visibility
     if (PointLight* ptLight = std::get_if<PointLight>(&light)) {
-        l = normalize(ptLight->position - rec.pos);
+        out_dir = normalize(ptLight->position - rec.pos);
         dsq = distance_squared(rec.pos, ptLight->position);
         if (isVisible(rec.pos, ptLight->position, scene, root)) { // 2
-            L =  ptLight->intensity * std::max( abs(dot(rec.normal, l)), 0.0 ) / dsq;
+            Li =  ptLight->intensity * std::max( abs(dot(rec.normal, out_dir)), 0.0 ) / dsq;
         }
         brdfValue = compute_BRDF(mat, in_dir, ptLight->position, rec);  // 1
         pdf_Light = 1.0 / nLights;  // 3
+        Ld += brdfValue * Li / pdf_Light;
     }
     else if (DiffuseAreaLight* areaLight = get_if<DiffuseAreaLight>(&light)) {
         if (scene.lights.size() == 0) {
             return Vector3(0.0, 0.0, 0.0);
         }
+        // TODO: include dx version pdf_BRDF
         // get the brdf and pdf of the sampled light
         tie(out_dir, brdfValue, pdf_Light) = 
             arealight_sample(scene, rec, root, areaLight, mat, rng, in_dir);  // 1 & 3
@@ -881,13 +887,35 @@ Vector3 sample_oneLight_contribution(Scene& scene, Hit_Record& rec,
         bool foundHit = root.hit(lightRay, EPSILON, infinity<Real>(), scene, rec_light, lightObj);
         if (foundHit) {
             dsq = distance_squared(rec.pos, rec_light.pos);
-            l = normalize(rec_light.pos - rec.pos);
-            L =  areaLight->radiance * std::max( abs(dot(rec.normal, l)), 0.0 ) / dsq;  // 2
+            Li =  areaLight->radiance * std::max( abs(dot(rec.normal, out_dir)), 0.0 ) / dsq;  // 2
+
+            // actually it's f * Li / (pdf_L + pdf_BRDF), but it's good to keep a clear formula structure.
+            weight = pdf_Light / (pdf_Light + pdf_BRDF);
+            Ld += brdfValue * Li * weight / pdf_Light;
         }
+
+
+        // Do BRDF sampling only for area light; now we have a new out_dir
+        tie(out_dir, brdfValue, pdf_BRDF, pdf_Light) = BRDF_sample(mat, rec, rng, in_dir);
+            ray outRay(rec.pos, out_dir);
+        // "fake" choose a light: if no light, this is 0
+        pdf_Light = alternative_light_pdf(outRay, scene, root, rec.pos);
+
+        Hit_Record rec_brdf;
+        Shape* brdfObj = nullptr;
+        ray brdfRay(rec.pos, out_dir);
+        foundHit = root.hit(brdfRay, EPSILON, infinity<Real>(), scene, rec_brdf, brdfObj);
+        if (foundHit) {
+            dsq = distance_squared(rec.pos, rec_brdf.pos);
+            
+        }
+
+        weight = pdf_BRDF / (pdf_Light + pdf_BRDF);
+        Ld += brdfValue * Li * weight / pdf_BRDF;
     }
 
     // cout << "contrib from one light: " << brdfValue * L / pdf_Light << endl;
-    return brdfValue * L / pdf_Light;
+    return Ld;
 }
 
 

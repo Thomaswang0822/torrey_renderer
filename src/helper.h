@@ -242,3 +242,6 @@ Vector3 dir_cos_sample(pcg32_state& rng, Basis& basis);
  * @return Vector3 
  */
 Vector3 dir_Phong_sample(pcg32_state& rng, Basis& basis, Real alpha);
+
+
+Vector3 dir_GGX_sample(pcg32_state& rng, Basis& basis, Real exponent);

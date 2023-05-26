@@ -264,6 +264,12 @@ struct BlinnPhongMicrofacet {
         return alpha_sq / (c_PI * cos_theta_sq*cos_theta_sq * pow((alpha_sq + tan_sq), 2));
     }
 
+    Real compute_PDF_GGX(const Vector3& h, const Vector3& out_dir, Hit_Record& rec) {
+        // just D(m) * <m, n>
+        Real alpha_sq = 2.0 / (exponent + 2.0);
+        return compute_D_GGX(h, rec, alpha_sq) * dot(h, rec.normal) / (4.0 * dot(out_dir, h));
+    }
+
     #pragma endregion GGX
 };
 

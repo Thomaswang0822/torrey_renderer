@@ -314,3 +314,23 @@ Vector3 dir_Phong_sample(pcg32_state& rng, Basis& basis, Real alpha) {
     Vector3 local_pos(x,y,z);
     return basis.local2world(local_pos);
 }
+
+
+Vector3 dir_GGX_sample(pcg32_state& rng, Basis& basis, Real exponent) {
+    double u1 = next_pcg32_real<double>(rng);
+    double u2 = next_pcg32_real<double>(rng);
+
+    Real phi = c_TWOPI * u2;
+
+    Real alpha_sq = 2.0 / (exponent + 2.0);
+    Real theta = tan(sqrt( alpha_sq * u1 / (1.0 - u1) ));
+    Real sin_theta = sin(theta); Real cos_theta = cos(theta);
+
+    Real x = sin_theta * cos(phi);
+    Real y = sin_theta * sin(phi);
+    Real z = cos_theta;
+
+    // turn to world space
+    Vector3 local_pos(x,y,z);
+    return basis.local2world(local_pos);
+}
