@@ -172,6 +172,18 @@ struct BlinnPhong {
     }
 };
 
+/**
+ * @note To save some time doing type check, modifying scene xml, adding parser code,
+ *     I will just add the GGX Distribution implmentation here, as an alternative to
+ *     BlinnPhong Distribution.
+ * @note This struct now should be called "Microfacet", a general purpose definition.
+ * 
+ * @ref Walter, Bruce, et al. "Microfacet models for refraction through rough surfaces." 
+ *     Proceedings of the 18th Eurographics conference on Rendering Techniques. 2007.
+ * @ref How to convert between BlinnPhong exponent and Roughness (alpha_g in GGX):
+ *     http://graphicrants.blogspot.com/2013/08/specular-brdf-reference.html
+ * 
+ */
 struct BlinnPhongMicrofacet {
     Color reflectance; // Ks
     Real exponent; // alpha
@@ -214,6 +226,45 @@ struct BlinnPhongMicrofacet {
         return (exponent + 1.0) * pow(dot(rec.normal, h), exponent) *
             c_INVTWOPI / (4.0 * dot(out_dir, h));
     }
+
+    // m in the formula is our h; v in the formula is our in_dir & out_dir
+    // alpha_g represents roughness and has a inverse relationship with exponent
+    // exponent = 2/alpha^2 - 2
+    #pragma region GGX
+    Vector3 compute_BRDF_GGX(const Vector3& h, const Vector3& in_dir,
+            const Vector3& out_dir, Hit_Record& rec) 
+    {
+        Vector3 Fh = get_Fh(h, out_dir, rec);
+        
+        // Compute parameter alpha, but obverse that we only need alpha^2 in equation D() and G()
+        // exponent = 2/alpha^2 - 2
+        Real alpha_sq = 2.0 / (exponent + 2.0);
+
+        Real G = compute_G1_GGX(h, in_dir, rec, alpha_sq) * compute_G1_GGX(h, out_dir, rec, alpha_sq);
+        Real D = compute_D_GGX(h, rec, alpha_sq);
+        // put together
+        return Fh * D * G / (4.0 * dot(rec.normal, in_dir));
+
+    }
+
+    Real compute_G1_GGX(const Vector3& h, const Vector3& dir, Hit_Record& rec, const Real& alpha_sq) {
+        if (dot(dir, h) <= 0) { return 0.0; }
+        // find tan^2(theta_v) = sin^2 / cos^2
+        Real cos_theta_sq = pow(dot(dir, rec.normal), 2);
+        Real tan_sq = (1.0 - cos_theta_sq) / cos_theta_sq;
+        // plug in formula (34)
+        return 2.0 / (1.0 + sqrt(1.0 + alpha_sq * tan_sq));
+    }
+
+    Real compute_D_GGX(const Vector3& h, Hit_Record& rec, const Real& alpha_sq) {
+        // find theta_m, angle between half-vector(m) and n
+        Real cos_theta_sq = pow(dot(h, rec.normal), 2);
+        Real tan_sq = (1.0 - cos_theta_sq) / cos_theta_sq;
+        // return
+        return alpha_sq / (c_PI * cos_theta_sq*cos_theta_sq * pow((alpha_sq + tan_sq), 2));
+    }
+
+    #pragma endregion GGX
 };
 
 using Material = std::variant<Diffuse,

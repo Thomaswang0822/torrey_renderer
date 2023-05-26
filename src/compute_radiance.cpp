@@ -535,6 +535,7 @@ Sample BRDF_sample(Material& currMaterial, Hit_Record& rec,
         // sample half vector h to get out_dir AND estimate D(h)
         Basis basis = Basis::orthonormal_basis(rec.normal);
         Vector3 sample_h = dir_Phong_sample(rng, basis, micro_blphMat->exponent);
+
         // reflect in_dir over h to get out_dir
         out_dir = mirror_dir(in_dir, sample_h);
         // check dot(hitting normal, out_dir) 
@@ -544,8 +545,8 @@ Sample BRDF_sample(Material& currMaterial, Hit_Record& rec,
 
         // compute BlinnPhongMicrofacet BRDF;
         // note: in_dir w_i should align with shading normal
-        brdfValue = micro_blphMat->compute_BRDF(
-            sample_h, in_dir, out_dir, rec);
+        // brdfValue = micro_blphMat->compute_BRDF(sample_h, in_dir, out_dir, rec);
+        brdfValue = micro_blphMat->compute_BRDF_GGX(sample_h, in_dir, out_dir, rec);
         
         // compute BlinnPhongMicrofacet PDF;
         pdf = micro_blphMat->compute_PDF(sample_h, out_dir, rec);
@@ -617,8 +618,8 @@ Sample Light_sample(Scene& scene, Hit_Record& rec, BVH_node& root,
         Triangle* tri = get_if<Triangle>(&scene.shapes[areaLight->shape_id + local_idx]);
 
         // pick a point from the Triangle
-        // light_pos = Triangle_sample(tri, rng);
-        light_pos = SphTri_sample(tri, rng, rec);
+        light_pos = Triangle_sample(tri, rng);
+        // light_pos = SphTri_sample(tri, rng, rec);
 
         // shadow test
         if (!isVisible(rec.pos, light_pos, scene, root)) {
@@ -695,7 +696,8 @@ Sample Light_sample(Scene& scene, Hit_Record& rec, BVH_node& root,
     }
     else if (BlinnPhongMicrofacet* micro_blphMat = get_if<BlinnPhongMicrofacet>(&currMaterial)) {
         Kd = eval_RGB(micro_blphMat->reflectance, rec.u, rec.v);
-        brdfValue = micro_blphMat->compute_BRDF(h, in_dir, out_dir, rec);  // 2
+        // brdfValue = micro_blphMat->compute_BRDF(h, in_dir, out_dir, rec);  // 2
+        brdfValue = micro_blphMat->compute_BRDF_GGX(h, in_dir, out_dir, rec);  // 2
         pdf_BRDF = isPossible? micro_blphMat->compute_PDF(h, out_dir, rec) : 0.0;  // 3
     }
     else {
