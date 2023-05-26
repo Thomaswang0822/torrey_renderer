@@ -57,7 +57,7 @@ struct Basis {
 };
 
 /**
- * @brief Spherical triangle on a unit sphere
+ * @brief Spherical triangle on a unit sphere centered at (0,0,0)
  * 
  */
 struct SphTriangle {
@@ -67,25 +67,76 @@ struct SphTriangle {
     double a,b,c;  // edge lengths
 
     SphTriangle(const Triangle* tri, Vector3 center) {
-        Vector3 oA = normalize(tri->p0 - center);
-        Vector3 oB = normalize(tri->p0 - center);
-        Vector3 oC = normalize(tri->p0 - center);
         // Find vertices
-        A = center + oA;
-        B = center + oB;
-        C = center + oC;
+        A = normalize(tri->p0 - center);
+        B = normalize(tri->p1 - center);
+        C = normalize(tri->p2 - center);
 
         // Find edge lengths: they are represented by 
-        // "by the lines connecting the vertices 
+        // "the lines connecting the vertices 
         // to the center of the sphere."
-        a = acos(dot(oB, oC));
-        b = acos(dot(oA, oC));
-        c = acos(dot(oA, oB));
+        // B - Point(0,0,0) = B
+        a = acos(dot(B, C));
+        b = acos(dot(A, C));
+        c = acos(dot(A, B));
 
-        // TODO: Find internal angles
+        // Find internal angles
+        tie(alpha, beta, gamma) = internal_angles(A, B, C);
 
         // Find area
         area = alpha + beta + gamma - c_PI;
+    }
+
+    /**
+     * @brief Compute 3 internal angles of a spherical triangle given 3 vertex positions
+     * 
+     * @def ext_i = sign(det(p_i-1, p_i, p_i+1)) * 
+     *     acos(normalize(p_i-1 cross p_i) <dot> normalize(p_i cross p_i+1))
+     * 
+     * @ref Eq (1.2), Chern, Albert, and Sadashige Ishida. "Area formula for spherical polygons 
+     *     via prequantization." arXiv preprint arXiv:2303.14555 (2023).
+     * 
+     * @return tuple<Real, Real, Real> 
+     */
+    tuple<Real, Real, Real> internal_angles(const Vector3& p0, const Vector3& p1, const Vector3& p2) {
+        Vector3 cr01, cr12, cr20;
+        cr01 = normalize(cross(p0, p1));
+        cr12 = normalize(cross(p1, p2));
+        cr20 = normalize(cross(p2, p0));
+
+        // sign(det[p0, p1, p2]) is used to determine the signed angles,
+        // but we only need unsigned
+        Real ext0, ext1, ext2;  // external angles
+        ext0 = abs(acos(dot(cr20, cr01)));
+        ext1 = abs(acos(dot(cr01, cr12)));
+        ext2 = abs(acos(dot(cr12, cr20)));
+        // return value
+        return {c_PI-ext0, c_PI-ext1, c_PI-ext2};
+    }
+
+    // return the sampled position on the local unit sphere centered at (0,0,0)
+    Vector3 local_sample(pcg32_state& rng) {
+        Real r1 = next_pcg32_real<Real>(rng);
+        Real r2 = next_pcg32_real<Real>(rng);
+        // Use one random variable to select the new area
+        Real area_hat = r1 * area;
+        // Save the sine and cosine of angle phi
+        Real s = sin(area_hat - alpha);
+        Real t = cos(area_hat - alpha);
+        // Compute the pair u,v that deterines beta_hat
+        Real u = t - cos(alpha);
+        Real v = s + sin(alpha) * cos(c);
+        // Let q be the cosine of the new edge length b_hat
+        Real q = ((v * t - u * s) * cos(alpha) - v) /   // numerator
+            ((v * s + u * t) * sin(alpha));  // denominator
+        // Compute the third vertex of the sub-triangle
+        // [x | y] = normalize(x - <x, y>*y)
+        Vector3 C_hat = q * A + sqrt(1.0 - q*q) * normalize(C - dot(C, A)*A);
+        // Use the other random variable to select cos_theta
+        Real z = 1.0 - r2 * (1.0 - dot(C_hat, B));
+        // Construct the corresponding position on the sphere
+        Vector3 P = z * B + sqrt(1.0 - z*z) * normalize(C_hat - dot(C_hat, B) * B);
+        return P;
     }
 };
 
@@ -106,6 +157,15 @@ struct SphTriangle {
  * @return Vector3 
  */
 Vector3 Triangle_sample(const Triangle* tri, pcg32_state& rng, int which_part=-1);
+
+/**
+ * @brief Perform the sampling described in "Stratified Sampling of Spherical Triangles"
+ * 
+ * @ref https://dl.acm.org/doi/pdf/10.1145/218380.218500
+ * 
+ * @return Vector3 
+ */
+Vector3 SphTri_sample(Triangle* tri, pcg32_state& rng, Hit_Record& rec);
 
 
 /**

@@ -617,7 +617,8 @@ Sample Light_sample(Scene& scene, Hit_Record& rec, BVH_node& root,
         Triangle* tri = get_if<Triangle>(&scene.shapes[areaLight->shape_id + local_idx]);
 
         // pick a point from the Triangle
-        light_pos = Triangle_sample(tri, rng);
+        // light_pos = Triangle_sample(tri, rng);
+        light_pos = SphTri_sample(tri, rng, rec);
 
         // shadow test
         if (!isVisible(rec.pos, light_pos, scene, root)) {

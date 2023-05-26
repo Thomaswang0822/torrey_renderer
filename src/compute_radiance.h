@@ -160,7 +160,7 @@ inline bool closeToZero(Real& x) {
 /**
  * @brief Russian Roulette uses the luminance of a color to decide
  *     termination. The approach in PBRT is too complex. I found this
- *     one-formula instead:
+ *     one-line formula instead:
  * 
  * @ref https://stackoverflow.com/a/596243
  * 

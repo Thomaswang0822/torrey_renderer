@@ -189,6 +189,33 @@ Vector3 Triangle_sample(const Triangle* tri, pcg32_state& rng, int which_part) {
 }
 
 
+Vector3 SphTri_sample(Triangle* tri, pcg32_state& rng, Hit_Record& rec)
+{
+    // construct the Spherical Triangle
+    SphTriangle sphtri(tri, rec.pos);
+
+    // sample a local position on the unit sphere
+    Vector3 p = sphtri.local_sample(rng);
+
+    // send p back to the triangle
+    ray ray_back(rec.pos, rec.pos + p, true);
+    Hit_Record rec_back;
+    Shape* hitObj = nullptr;
+    checkRayTriHit(ray_back, tri, rec_back, hitObj);
+    if (hitObj == nullptr) {
+        // above function fails, meaning tri.normal is perpendicular to xp
+        // just return tri angle center. visibility check will make contribution to 0
+        return (tri->p0 + tri->p1 + tri->p2) / 3.0;
+    }
+    /* Triangle* tri1 = get_if<Triangle>(hitObj);
+    if (tri1->face_id != tri->face_id)
+        std::cout << tri1->face_id << tri->face_id << endl; */
+    return Vector3(rec_back.pos);
+    // return tri->p0 * (1.0 - rec.u - rec.v) +
+    //     tri->p1 * rec.u + tri->p2 * rec.v;
+}
+
+
 Vector3 Sphere_sample(const Sphere* sph, pcg32_state& rng, int idx, int ct) {
     Real u1 = next_pcg32_real<Real>(rng);
     Real u2 = next_pcg32_real<Real>(rng);
