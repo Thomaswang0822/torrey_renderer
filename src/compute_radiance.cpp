@@ -851,6 +851,7 @@ Vector3 sample_oneLight_contribution(Scene& scene, Hit_Record& rec,
     // compute accordingly
     Vector3 out_dir;
     Real dsq;  // distance squared: shadingPt to light position
+    Real abs_cos;  // | <n_x, out_dir> |
 
     
     // contribution is:
@@ -883,10 +884,10 @@ Vector3 sample_oneLight_contribution(Scene& scene, Hit_Record& rec,
         Hit_Record rec_light;
         Shape* lightObj = nullptr;
         ray lightRay(rec.pos, out_dir);
-        bool foundHit = root.hit(lightRay, EPSILON, infinity<Real>(), scene, rec_light, lightObj);
-        if (foundHit) {
+        root.hit(lightRay, EPSILON, infinity<Real>(), scene, rec_light, lightObj);
+        if (lightObj != nullptr) {
             dsq = distance_squared(rec.pos, rec_light.pos);
-            Real abs_cos = abs(dot(rec.normal, out_dir));
+            abs_cos = abs(dot(out_dir, rec_light.normal));
             Li =  areaLight->radiance * abs_cos / dsq;  // 2
 
             // convert pdfs back to area measurement
@@ -910,19 +911,22 @@ Vector3 sample_oneLight_contribution(Scene& scene, Hit_Record& rec,
         Hit_Record rec_brdf;
         Shape* brdfObj = nullptr;
         ray brdfRay(rec.pos, out_dir);
-        foundHit = root.hit(brdfRay, EPSILON, infinity<Real>(), scene, rec_brdf, brdfObj);
+        root.hit(brdfRay, EPSILON, infinity<Real>(), scene, rec_brdf, brdfObj);
         if (brdfObj != nullptr) {
             Triangle* tri = get_if<Triangle>(brdfObj);
             if (tri != nullptr && tri->area_light_id == pick_id) {
                 // only accumulate BRDF sampling contribution because this function is
                 // "oneLight_contribution"
                 dsq = distance_squared(rec.pos, rec_brdf.pos);
-                Real abs_cos = abs(dot(rec.normal, out_dir));
+                abs_cos = abs(dot(out_dir, rec_brdf.normal));
+                // std::cout << dsq << "\t" << abs_cos << endl;
                 Li =  areaLight->radiance * abs_cos / dsq;  // 2
 
                 // convert pdfs back to area measurement
                 pdf_dir2pos(pdf_BRDF, pdf_Light, dsq, abs_cos);
+                // std::cout << pdf_BRDF << "\t" << pdf_Light << endl;
                 weight = pdf_BRDF / (pdf_Light + pdf_BRDF);
+                // std::cout << brdfValue * Li * weight / pdf_BRDF << endl;
                 Ld += brdfValue * Li * weight / pdf_BRDF;
             }
         }
