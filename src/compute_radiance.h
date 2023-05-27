@@ -78,10 +78,15 @@ Vector3 sphereLight_contribution(Scene& scene, Hit_Record& rec, BVH_node& root,
 #pragma region PATH_TRACING
 // out_dir (w_o in formula), BRDF_value, pdf_BRDF, pdf_Light
 using Sample = tuple<Vector3, Vector3, Real, Real>;
-// out_dir, BRDF_value, pdf_light
-using LightSample = tuple<Vector3, Vector3, Real>; 
 
-
+/**
+ * @brief Recursive function that calculates the Radiance arrived at 
+ *     THIS PARTICULAR ray.
+ * 
+ * @note This is for HW_4_3, which implements one-sample MIS
+ * 
+ * @return Vector3 
+ */
 Vector3 radiance(Scene& scene, ray& localRay, BVH_node& root, 
                         pcg32_state& rng, unsigned int recDepth=MAX_DEPTH);
 
@@ -96,7 +101,7 @@ Vector3 radiance(Scene& scene, ray& localRay, BVH_node& root,
  * @note When dot product check fails, BRDF_value is 0, and last 2 pdf don't matter.
  * @return Sample 
  */
-Sample BRDF_sample(Material& currMaterial, Hit_Record& rec, 
+Sample BRDF_sample_dir(Material& currMaterial, Hit_Record& rec, 
             pcg32_state& rng, const Vector3& in_dir);
 
 /**
@@ -109,12 +114,12 @@ Sample BRDF_sample(Material& currMaterial, Hit_Record& rec,
  * 
  * @return Sample 
  */
-Sample Light_sample(Scene& scene, Hit_Record& rec, BVH_node& root,
+Sample Light_sample_dir(Scene& scene, Hit_Record& rec, BVH_node& root,
             Material& currMaterial, pcg32_state& rng, const Vector3& in_dir);
 
 
 /**
- * @brief For one-sample MIS usage: there are some additional work after
+ * @brief For MIS BRDF sampling usage: there are some additional work after
  *   we obtain a direction from BRDF sampling
  * 
  * @return Real 
@@ -125,28 +130,63 @@ Real alternative_light_pdf(ray& outRay, Scene& scene, BVH_node& root,  // determ
 
 /**
  * @brief This is a rewrite of the recursive function radiance().
- *   The iterative version can better accomodate Russian Roulette termination.
+ *     The iterative version can better accomodate Russian Roulette termination.
  * 
- * @ref It is based on PBRT book chapter 14.5.4
+ * @ref It is based on PBRT book chapter 14.5.4, and those helpers it called.
  * 
- * @param recDepth 
+ * @implements Deterministic MIS, see Step 4 & 5
+ * @implements Russian Roulette, see Step 6
+ * 
+ * @note With Deterministic MIS, it supports point light
+ * 
+ * @param recDepth since this a iterative function, this is the max recusion depth and will not change
  * @return Vector3 
  */
 Vector3 radiance_iterative(Scene& scene, ray& localRay, BVH_node& root, 
         pcg32_state& rng, unsigned int recDepth=MAX_DEPTH);
 
 
+/**
+ * @brief For deterministic MIS usage: 
+ *     Uniformly pick a light from the scene.
+ *     If it's a point Light, do calculation and return;
+ *     If it's an area Light, do both:
+ *     - Light sampling: pick a point from light and calculate contribution
+ *     - BRDF sampling: pick a dir and do intersection check. Accumulate contribution 
+ *       ONLY IF we hit the SAME area light along this direction, because we care
+ *       "oneLight_contribution"
+ * 
+ * @ref https://www.pbr-book.org/3ed-2018/Light_Transport_I_Surface_Reflection/Direct_Lighting#UniformSampleOneLight
+ * @ref https://www.pbr-book.org/3ed-2018/Light_Transport_I_Surface_Reflection/Direct_Lighting#EstimateDirect
+ * 
+ * 
+ * @return Vector3 
+ */
 Vector3 sample_oneLight_contribution(Scene& scene, Hit_Record& rec, 
         BVH_node& root, pcg32_state& rng,
         Material& mat, const Vector3& in_dir);
 
 
-LightSample arealight_sample(Scene& scene, Hit_Record& rec, BVH_node& root, DiffuseAreaLight* areaLight,
-            Material& currMaterial, pcg32_state& rng, const Vector3& in_dir);
+/**
+ * @brief Convert 2 pdfs in dir(solid angle) measurement back to area measurement.
+ *      A function call isn't necessary but make caller code clearer
+ * 
+ * @param dsq distance squared
+ * @param abs_cos |<out_dir, shading_normal>|
+ */
+inline void pdf_dir2pos(Real& pdf_BRDF, Real& pdf_Light, Real& dsq, Real abs_cos) {
+    pdf_BRDF *= abs_cos / dsq;
+    pdf_Light *= abs_cos / dsq;
+}
 
 
-Vector3 compute_BRDF(Material& mat, const Vector3& in_dir,
-            const Vector3& out_dir, Hit_Record& rec);
+/**
+ * @brief For point light usage: given its position, calculate its radiance, f(x) in the formula.
+ * 
+ * @return Vector3 
+ */
+Vector3 compute_f_ptLight(Material& mat, const Vector3& in_dir,
+            const Vector3& light_pos, Hit_Record& rec);
 
 
 inline bool closeToZero(Vector3& v) {
