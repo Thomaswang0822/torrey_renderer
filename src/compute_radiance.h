@@ -111,11 +111,18 @@ Sample BRDF_sample_dir(Material& currMaterial, Hit_Record& rec,
  *   it will be computed here and returned in the 4-th return value
  * 
  * @note light_BRDF = Kd * I / PI, need to look at material anyway
+ * @note determisitic MIS update: need the flexibility to either
+ *     sample a light
+ *     OR
+ *     use the given light (sampled by the caller)
+ * @param given_id default to -1, which means we should sample in the function. 
+ *     Otherwise we use this id and don't perform sample
  * 
  * @return Sample 
  */
 Sample Light_sample_dir(Scene& scene, Hit_Record& rec, BVH_node& root,
-            Material& currMaterial, pcg32_state& rng, const Vector3& in_dir);
+            Material& currMaterial, pcg32_state& rng, const Vector3& in_dir,
+            int given_id=-1);
 
 
 /**
@@ -190,11 +197,11 @@ Vector3 compute_f_ptLight(Material& mat, const Vector3& in_dir,
 
 
 inline bool closeToZero(Vector3& v) {
-    return length_squared(v) < 1e-4;
+    return length_squared(v) < 1e-9;
 }
 
 inline bool closeToZero(Real& x) {
-    return abs(x) < 1e-6;
+    return abs(x) < 1e-9;
 }
 
 /**

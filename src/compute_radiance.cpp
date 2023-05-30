@@ -1,5 +1,6 @@
 #include "compute_radiance.h"
 
+using namespace std;
 
 // HW3 Update: deal with ImageTexture Color & Area light
 Vector3 BVH_DiffuseColor(Scene& scene, Hit_Record& rec, const Color& refl, 
@@ -563,7 +564,8 @@ Sample BRDF_sample_dir(Material& currMaterial, Hit_Record& rec,
 
 
 Sample Light_sample_dir(Scene& scene, Hit_Record& rec, BVH_node& root,
-            Material& currMaterial, pcg32_state& rng, const Vector3& in_dir)
+            Material& currMaterial, pcg32_state& rng, const Vector3& in_dir,
+            int given_id)
 {
     // our return values
     Vector3 out_dir, brdfValue;
@@ -575,9 +577,10 @@ Sample Light_sample_dir(Scene& scene, Hit_Record& rec, BVH_node& root,
     Vector3 Kd, I; // Kd and lightIntensity
     Vector3 h; // half-vector for BlinnPhong and Microfacet useage
 
-    // uniformly pick a light
+    // uniformly pick a light OR use the given light
     int n = scene.lights.size();
-    int lightId = static_cast<int>(n * next_pcg32_real<double>(rng));
+    int lightId = (given_id == -1)?
+        static_cast<int>(n * next_pcg32_real<double>(rng)) : given_id;
     Light& light = scene.lights[lightId];
     assert(!get_if<PointLight>(&light) && "One-sample MIS doesn't support point Light.");
     DiffuseAreaLight* areaLight = get_if<DiffuseAreaLight>(&light);
@@ -758,6 +761,7 @@ Vector3 radiance_iterative(Scene& scene, ray& localRay, BVH_node& root,
     Vector3 L(0.0, 0.0, 0.0);
     Vector3 Beta(1.0, 1.0, 1.0); // accumulated brdf_value * cosine_term
     bool specularBounce = false;
+    double nLights = static_cast<double>(scene.lights.size());
     
     for (unsigned int bounces=0; bounces <recDepth; bounces++) {
         #pragma region in_loop
@@ -789,7 +793,8 @@ if (bounces == 0 || specularBounce) {
 Material& currMaterial = scene.materials[rec.mat_id];
 // if hit && self not a light && not a mirror
 if (!is_light(*hitObj) && !get_if<Mirror>(&currMaterial))
-    L += Beta * sample_oneLight_contribution(scene, rec, root, rng, currMaterial, localRay.dir);
+    L += Beta * nLights *
+        sample_oneLight_contribution(scene, rec, root, rng, currMaterial, -localRay.dir);
 
 // Step 5. Sample BSDF to get new path direction
 Vector3 in_dir = -localRay.dir;
@@ -874,11 +879,7 @@ Vector3 sample_oneLight_contribution(Scene& scene, Hit_Record& rec,
         #pragma region lightSample
         // NOTE: it gives us 2 pdfs in dir(solid angle) measurement. Should turn back to area measurement
         tie(out_dir, brdfValue, pdf_BRDF, pdf_Light) = 
-            Light_sample_dir(scene, rec, root, mat, rng, in_dir);  // 1 & 3
-
-        if (closeToZero(brdfValue)) {
-            return Vector3(0.0, 0.0, 0.0);
-        }
+            Light_sample_dir(scene, rec, root, mat, rng, in_dir, pick_id);  // 1 & 3
         
         // with a dir instead of a position, we use hit() to do visibility check
         Hit_Record rec_light;
@@ -886,12 +887,17 @@ Vector3 sample_oneLight_contribution(Scene& scene, Hit_Record& rec,
         ray lightRay(rec.pos, out_dir);
         root.hit(lightRay, EPSILON, infinity<Real>(), scene, rec_light, lightObj);
         if (lightObj != nullptr) {
+            // cout << rec_light.normal << length(rec_light.normal) << endl;
             dsq = distance_squared(rec.pos, rec_light.pos);
             abs_cos = abs(dot(out_dir, rec_light.normal));
-            Li =  areaLight->radiance * abs_cos / dsq;  // 2
+            abs_cos = std::max(dot(out_dir, -rec_light.normal), 0.0);
+            Li = areaLight->radiance * abs_cos / dsq;  // 2
 
             // convert pdfs back to area measurement
             pdf_dir2pos(pdf_BRDF, pdf_Light, dsq, abs_cos);
+            // the sample_dir() function includes probability of choosing
+            // from n lights, but it shouldn't be included there.
+            pdf_Light *= nLights;
 
             // actually it's f * Li / (pdf_L + pdf_BRDF), but it's good to keep a clear formula structure.
             weight = pdf_Light / (pdf_Light + pdf_BRDF);
@@ -914,20 +920,26 @@ Vector3 sample_oneLight_contribution(Scene& scene, Hit_Record& rec,
         root.hit(brdfRay, EPSILON, infinity<Real>(), scene, rec_brdf, brdfObj);
         if (brdfObj != nullptr) {
             Triangle* tri = get_if<Triangle>(brdfObj);
-            if (tri != nullptr && tri->area_light_id == pick_id) {
-                // only accumulate BRDF sampling contribution because this function is
-                // "oneLight_contribution"
+            Sphere* sph = get_if<Sphere>(brdfObj);
+            // only accumulate BRDF sampling contribution because this function is
+            // "oneLight_contribution"
+            if ((tri != nullptr && tri->area_light_id == pick_id) || 
+                (sph != nullptr && sph->area_light_id == pick_id)) 
+            {
                 dsq = distance_squared(rec.pos, rec_brdf.pos);
                 abs_cos = abs(dot(out_dir, rec_brdf.normal));
+                abs_cos = std::max(dot(out_dir, -rec_brdf.normal), 0.0);
                 // std::cout << dsq << "\t" << abs_cos << endl;
-                Li =  areaLight->radiance * abs_cos / dsq;  // 2
+                Li = areaLight->radiance * abs_cos / dsq;  // 2
 
                 // convert pdfs back to area measurement
                 pdf_dir2pos(pdf_BRDF, pdf_Light, dsq, abs_cos);
-                // std::cout << pdf_BRDF << "\t" << pdf_Light << endl;
+                // the sample_dir() function includes probability of choosing
+                // from n lights, but it shouldn't be included there.
+                pdf_Light *= nLights;
                 weight = pdf_BRDF / (pdf_Light + pdf_BRDF);
-                // std::cout << brdfValue * Li * weight / pdf_BRDF << endl;
                 Ld += brdfValue * Li * weight / pdf_BRDF;
+                // Ld += brdfValue * Li / pdf_BRDF;
             }
         }
         #pragma endregion BRDFSample        
