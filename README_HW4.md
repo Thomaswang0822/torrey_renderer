@@ -5,13 +5,13 @@
 ## Design My Own Scene
 
 I spent all the time debugging my BONUS, and I really don't enjoy designing my own scene.
-I will just put a bigger image of mi here.
+I will just put a bigger image of mi scene rendered with deterministic MIS here.
 
 ### Rendering
 
-512 x 512
+1920 x 1440
 
-![mi.png](./img_png/export/mi.png)
+![mi.png](./img_png/hw4/deterMIS/mi_MIS.png)
 
 ## Bonus: More Efficient Triangle Light Sampling
 
@@ -39,7 +39,7 @@ Essentially, there are 3 major steps for my code change/addition:
 2. Add Russian Roulette.
 3. Change one-sample MIS to deterministic MIS.
 
-There lots of details which can be found with function declarations in compute_radiance.h
+There are lots of details which can be found with function declarations in compute_radiance.h
 and all inline comments of their implementations.
 
 One thing worth noticing is that, here Russian Roulette is decided by `beta`, the accumulated
@@ -58,6 +58,9 @@ The pretty-big improvement in rendering result (noise reduction) is introduced b
 
 ![sphere3_MIS.png](./img_png/hw4/deterMIS/sphere3_MIS.png)
 ![hw_4_3c.png](./handouts/imgs/hw_4_3c.png)
+
+![mi_MIS.png](./img_png/hw4/deterMIS/mi_MIS.png)
+![hw_4_3c.png](./img_png/export/mi.png)
 
 ## Bonus: GGX/Trowbridge-Reitz Microfacet Distribution
 
