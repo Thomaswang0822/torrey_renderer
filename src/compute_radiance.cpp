@@ -374,7 +374,7 @@ Vector3 radiance(Scene& scene, ray& localRay, BVH_node& root,
     // Step 3: get Material of hitObj -> handle special case Mirror
     // It's special because we don't need any kind of sampling
     Material& currMaterial = scene.materials[rec.mat_id];
-    if (Mirror* mirrorMat = std::get_if<Mirror>(&currMaterial)) {
+    if (Mirror* mirrorMat = get_if<Mirror>(&currMaterial)) {
         // mirror refect ray and do recursion
         ray rayOut = mirror_ray(localRay, rec.normal, rec.pos);
         double cos_theta = dot(rec.normal, rayOut.dir);
@@ -416,6 +416,18 @@ Vector3 radiance(Scene& scene, ray& localRay, BVH_node& root,
         // cout << brdf_PDF << "\t" << light_PDF << "\t" << brdfValue << endl;
     }
     else {
+        // BRDF sampling
+        if (Plastic* plasticMat = get_if<Plastic>(&currMaterial)){
+            ray rayOut = mirror_ray(localRay, rec.normal, rec.pos);
+            double cos_theta = dot(rec.normal, rayOut.dir);
+
+            // decide between mirror-like and diffuse-like
+            double F = compute_SchlickFresnel(plasticMat->get_F0(), cos_theta);
+            if (next_pcg32_real<Real>(rng) < F) {
+                // We only consider specular component in BRDF sampling, 50% of time
+                return 2.0 * radiance(scene, rayOut, root, rng, recDepth=recDepth-1);
+            }
+        }
         tie(out_dir, brdfValue, brdf_PDF, light_PDF) = BRDF_sample_dir(currMaterial, rec, rng, in_dir);
         outRay.dir = out_dir;
         // "fake" choose a light: if no light, this is 0
@@ -466,25 +478,17 @@ Sample BRDF_sample_dir(Material& currMaterial, Hit_Record& rec,
         
     }
     else if (Plastic* plasticMat = std::get_if<Plastic>(&currMaterial)) {
-        mir_dir = mirror_dir(in_dir, rec.normal);
-        double cos_theta = dot(rec.normal, mir_dir);
-
-        // decide between mirror-like and diffuse-like
+        // compute F, but specular case is handled outside
+        double cos_theta = dot(rec.normal, in_dir);
         double F = compute_SchlickFresnel(plasticMat->get_F0(), cos_theta);
-        bool traceSpecular = next_pcg32_real<Real>(rng) < F;
-        if (traceSpecular) {
-            return {mir_dir, Vector3(1.0, 1.0, 1.0), 1.0, 0.0};
-        } else {
-            // same as diffuse
-            Basis basis = Basis::orthonormal_basis(rec.normal);
-            // sample an out_dir
-            out_dir = dir_cos_sample(rng, basis);
-            Real cosTerm = dot(rec.normal, out_dir);
-            brdfValue = plasticMat->compute_BRDF_diffuse(cosTerm, rec);
-            pdf = cosTerm * c_INVPI * (1.0-F);  // cosTerm / PI
-
-            return {out_dir, brdfValue, pdf, 0.0};
-        }
+        // sample a dir (diffuse)
+        Basis basis = Basis::orthonormal_basis(rec.normal);
+        out_dir = dir_cos_sample(rng, basis);
+        
+        Real cosTerm = dot(rec.normal, out_dir);
+        pdf = cosTerm * c_INVPI * (1.0-F);  // 3
+        brdfValue = plasticMat->compute_BRDF_diffuse(cosTerm, rec) * (1.0-F);  // 2
+        return {out_dir, brdfValue, pdf, 0.0};
     }
     else if (Phong* phongMat = get_if<Phong>(&currMaterial)) {
         // sample dir first, this time around mirror ray direction
@@ -660,28 +664,11 @@ Sample Light_sample_dir(Scene& scene, Hit_Record& rec, BVH_node& root,
         pdf_BRDF = std::max(cosTerm, 0.0) * c_INVPI;  // 3
     }
     else if (Plastic* plasticMat = std::get_if<Plastic>(&currMaterial)) {
-        /**
-         * @brief Even inside this Sample function, we randomly decide b/w
-         * specular or diffuse part.
-         * 
-         * If we decide to trace specular, we need to make sure those
-         * BRDF value and pdf work as if we are not doing sampling at all.
-         * 
-         */
-
-        // for plastic, we "do the sample" with Prob 1-F
-        Vector3 mir_dir = mirror_dir(in_dir, rec.normal);
-        Real cos_theta = dot(rec.normal, in_dir);
+        // compute F
+        double cos_theta = dot(rec.normal, in_dir);
         double F = compute_SchlickFresnel(plasticMat->get_F0(), cos_theta);
-        bool traceSpecular = next_pcg32_real<Real>(rng) < F;
-        if (traceSpecular) {
-            return {mir_dir, {1.0, 1.0, 1.0}, F, pdf_Light};
-        }
-         
-        // assert(false && "Disable light sampling plastic");
-        Kd = eval_RGB(plasticMat->reflectance, rec.u, rec.v);
-        brdfValue = Kd * std::max(cosTerm, 0.0) * c_INVPI;  // 2
-        pdf_BRDF = isPossible? cosTerm * c_INVPI * (1.0-F) : 0;  // 3
+        pdf_BRDF = cosTerm * c_INVPI * (1.0-F);  // 3
+        brdfValue = plasticMat->compute_BRDF_diffuse(cosTerm, rec) * (1.0-F);  // 2
     }
     else if (Phong* phongMat = get_if<Phong>(&currMaterial)) {
         Kd = eval_RGB(phongMat->reflectance, rec.u, rec.v);
