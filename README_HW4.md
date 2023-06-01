@@ -5,13 +5,13 @@
 ## Design My Own Scene
 
 I spent all the time debugging my BONUS, and I really don't enjoy designing my own scene.
-I will just put a bigger image of mi scene rendered with deterministic MIS here.
+I will just put a bigger image of dining-room scene rendered with deterministic MIS here.
 
 ### Rendering
 
 1920 x 1440
 
-![mi.png](./img_png/hw4/deterMIS/mi_MIS.png)
+![mi.png](./img_png/hw4/deterMIS/dining_room_MIS.png)
 
 ## Bonus: More Efficient Triangle Light Sampling
 
