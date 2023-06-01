@@ -417,7 +417,7 @@ Vector3 radiance(Scene& scene, ray& localRay, BVH_node& root,
     }
     else {
         // BRDF sampling
-        if (Plastic* plasticMat = get_if<Plastic>(&currMaterial)){
+        /* if (Plastic* plasticMat = get_if<Plastic>(&currMaterial)){
             ray rayOut = mirror_ray(localRay, rec.normal, rec.pos);
             double cos_theta = dot(rec.normal, rayOut.dir);
 
@@ -427,11 +427,16 @@ Vector3 radiance(Scene& scene, ray& localRay, BVH_node& root,
                 // We only consider specular component in BRDF sampling, 50% of time
                 return 2.0 * radiance(scene, rayOut, root, rng, recDepth=recDepth-1);
             }
-        }
+        } */
         tie(out_dir, brdfValue, brdf_PDF, light_PDF) = BRDF_sample_dir(currMaterial, rec, rng, in_dir);
         outRay.dir = out_dir;
-        // "fake" choose a light: if no light, this is 0
-        light_PDF = alternative_light_pdf(outRay, scene, root, rec.pos);
+        if (get_if<Plastic>(&currMaterial) && closeToZero(light_PDF-1.0)) {
+            // brdfValue = {1.0, 1.0, 1.0}, pdf_BRDF = 1.0; pdf_Light = 0.0
+            light_PDF = 0.0;
+        } else {
+            // "fake" choose a light: if no light, this is 0
+            light_PDF = alternative_light_pdf(outRay, scene, root, rec.pos);
+        }
 
         // cout << brdf_PDF << "\t" << light_PDF << "\t" << brdfValue << endl;
     }
@@ -481,10 +486,15 @@ Sample BRDF_sample_dir(Material& currMaterial, Hit_Record& rec,
         // compute F, but specular case is handled outside
         double cos_theta = dot(rec.normal, in_dir);
         double F = compute_SchlickFresnel(plasticMat->get_F0(), cos_theta);
+        if (next_pcg32_real<Real>(rng) < F) {
+            Vector3 mir_dir = mirror_dir(in_dir, rec.normal);
+            // We only consider specular component in BRDF sampling, 50% of time
+            return {mir_dir, {1.0, 1.0, 1.0}, 1.0, 1.0};
+        }
         // sample a dir (diffuse)
         Basis basis = Basis::orthonormal_basis(rec.normal);
         out_dir = dir_cos_sample(rng, basis);
-        
+
         Real cosTerm = dot(rec.normal, out_dir);
         pdf = cosTerm * c_INVPI * (1.0-F);  // 3
         brdfValue = plasticMat->compute_BRDF_diffuse(cosTerm, rec) * (1.0-F);  // 2
@@ -898,8 +908,14 @@ Vector3 sample_oneLight_contribution(Scene& scene, Hit_Record& rec,
         // NOTE: it gives us 2 pdfs in dir(solid angle) measurement. Should turn back to area measurement
         tie(out_dir, brdfValue, pdf_BRDF, pdf_Light) = BRDF_sample_dir(mat, rec, rng, in_dir);
             ray outRay(rec.pos, out_dir);
-        // "fake" choose a light: if no light, this is 0
-        pdf_Light = alternative_light_pdf(outRay, scene, root, rec.pos);
+
+        if (get_if<Plastic>(&mat) && closeToZero(pdf_Light-1.0)) {
+            // brdfValue = {1.0, 1.0, 1.0}, pdf_BRDF = 1.0; pdf_Light = 0.0
+            pdf_Light = 0.0;
+        } else {
+            // "fake" choose a light: if no light, this is 0
+            pdf_Light = alternative_light_pdf(outRay, scene, root, rec.pos);
+        }
 
         Hit_Record rec_brdf;
         Shape* brdfObj = nullptr;

@@ -196,11 +196,11 @@ Vector3 compute_f_ptLight(Material& mat, const Vector3& in_dir,
             const Vector3& light_pos, Hit_Record& rec);
 
 
-inline bool closeToZero(Vector3& v) {
+inline bool closeToZero(Vector3 v) {
     return length_squared(v) < 1e-9;
 }
 
-inline bool closeToZero(Real& x) {
+inline bool closeToZero(Real x) {
     return abs(x) < 1e-9;
 }
 
