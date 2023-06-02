@@ -1,0 +1,23 @@
+After we do hit checking, get a hitObj, and add emission to L.
+
+Handle the very special case: Mirror
+    We don't consider light in the scene at all.
+    We don't do any sample direction either.
+    We have a determinsitic mirror_reflection ray
+    do recursion
+
+flip a coin to decide BRDF sample (get a direction) or light sample (get a position from the light)
+
+***** if BRDF:
+get a sample_dir (w_o), could be directly or indirectly (from half-vector h)
+***** if light:
+uniformly choose a light source (each with Probability 1/n)
+sample a position on the light
+turn this position into sample_dir
+**********
+
+compute BRDF, the f_r
+compute pdf_BRDF
+compute pdf_light, remember to include the Jacobian
+blended_pdf = their average
+call recursion: return L_emmision + BRDF * (1 / blended_pdf) * f_radiance(......);

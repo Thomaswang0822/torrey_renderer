@@ -10,9 +10,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
 if(MSVC)
-  add_compile_options(/Wall)
+  add_compile_options(/Wall /Wno-unknown-pragmas)
 else()
-  add_compile_options(-Wall)
+  add_compile_options(-Wall -Wno-unknown-pragmas)
 endif()
 
 include_directories(${CMAKE_SOURCE_DIR}/src)
@@ -43,9 +43,19 @@ set(SRCS src/3rdparty/miniz.h
          src/torrey.h
          src/transform.h
          src/vector.h
+         src/ray.h
+         src/pcg.h
+         src/Scene.h
+         src/material.h
+         src/BVH_node.h
+         src/helper.h
+         src/all_utils.h
+         src/Hit_Record.h
+         src/compute_radiance.h
          src/compute_normals.cpp
          src/hw1.cpp
          src/hw2.cpp
+         src/hw2_helper.cpp
          src/hw3.cpp
          src/hw4.cpp
          src/image.cpp
@@ -56,7 +66,12 @@ set(SRCS src/3rdparty/miniz.h
          src/parse_scene.cpp
          src/parse_serialized.cpp
          src/print_scene.cpp
-         src/transform.cpp)
+         src/transform.cpp
+         src/Scene.cpp
+         src/BVH_node.cpp
+         src/helper.cpp
+         src/compute_radiance.cpp
+    )
 
 add_library(torrey_lib STATIC ${SRCS})
 add_executable(torrey src/main.cpp)
