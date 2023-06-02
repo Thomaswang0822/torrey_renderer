@@ -54,7 +54,10 @@ This is arguably the most important part of any ray-tracing or path-tracing rend
 
 An acceleration structure solves the following problem: how to test the intersection between a ray and EVERY object in the scene. A brute-force checking has complexity O(N) because it tests ray-shape-intersection against all N shapes in the scene one by one. An acceleration structure can achieve O(log(N)) complexity.
 
-There are 2 common types of acceleration structure: spatial subdivision and bounding volume hierarchies. Essentially, spatial subdivision divides the 3D scene into cells (3D grids). They will be subdivided repeatedly until a small cell only contains one or two shapes. Bounding volume hierarchies (usually referred to as 'BVH') creates bounding volumes around shapes, and bigger bounding volumes will be created to enclose smaller bounding volumes.
+There are 2 common types of acceleration structure: ***spatial subdivision*** and ***bounding volume hierarchies***. Essentially, spatial subdivision divides the 3D scene into cells (3D grids). They will be subdivided repeatedly until a small cell only contains one or two shapes. Bounding volume hierarchies (usually referred to as 'BVH') creates bounding volumes around shapes, and bigger bounding volumes will be created to enclose smaller bounding volumes. I will borrow 2 images from our slides to illustrate:
+
+![spatial_subdiv.png](./img_png/writeup/spatial_subdiv.png "Spatial Subdivision")
+![hw_1_6_after.png](./img_png/writeup/BVH.png "BVH")
 
 Both techniques utilize the fact that 3D grids and bounding volumes (usually boxes) can be easily merged into bigger ones. If a ray misses a big box entirely, we save the ray-shape-intersection check against all shapes enclosed by the box. With some spatial short-circuiting trick, it achieves ray-scene-intersection in O(log(N)) complexity.
 
@@ -71,7 +74,7 @@ Motion blur is a phenomenon occurred when a real camera captures photos of an ob
 
 Textures are used almost everywhere in computer graphics. They are in image format and allow us to specify the appearance independent of the model complexity. In other words, you can attach a super high-resolution image to a plane consisting of 2 triangles, and you can also extrapolate a very small image across a complex mesh to represent patterns.
 
-A little bit more details: when a ray hit a triangle at position p, we can calculate a barycentric coordinate of p and use it as the UV coordinate to query/interpolate a pixel RGB value in the texture image space.
+A little bit more details: when a ray hit a triangle at position p, we can calculate a ***barycentric coordinate*** of p and use it as the ***UV coordinate*** to query/interpolate a pixel RGB value in the texture image space.
 
 The first image below is a low-polygonal mesh with a high-resolution texture. See `scenes/head`. The second image is a complex mesh with several simple textures that creates the brick pattern of the Sponza Palace. See `scenes/sponza`.
 
@@ -80,12 +83,37 @@ The first image below is a low-polygonal mesh with a high-resolution texture. Se
 
 ### Shading Normals
 
-This is another brilliant idea invented by Phong. It makes a mesh look smoother and less polygonal, while not increasing the mesh complexity. It uses a similar idea as the UV texture mapping above. This time, the UV coordinate is used to interpolate the 3 vertex normals of the current triangle. This effectively turns a flat triangle in a mesh into a smoothly curved spherical triangle. The discrete change in the normal direction across the edge, which is the source of the polygonal look, will disappear.
+This is another brilliant idea invented by Phong and is extensively used in computer graphics. It makes a mesh look smoother and less polygonal, while not increasing the mesh complexity. It uses a similar idea as the UV texture mapping above. This time, the UV coordinate is used to interpolate the 3 vertex normals of the current triangle. This effectively turns a flat triangle in a mesh into a smoothly curved spherical triangle. The discrete change in the normal direction across the edge, which is the source of the polygonal look, will disappear.
 
 ![stable.png](./img_png/hw2/stable.png "Without shading normal")
 ![teapot_with_n.png](./img_png/hw3/teapot_with_n.png "With shading normal")
 
-### Area Light (Monte Carlo Importance Sampling)
+### Area Light (Monte Carlo Integration)
+
+Our renderer begins with only supporting point light, which is the easiest type of light source in computer graphics. Point lights require easier code and offer faster computation, but they also introduce unreal artifacts, such as hard shadow. You can compare the following image with the other one above. The shadow of the head on the shoulder looks very unreal.
+
+![hard_shadow.png](./handouts/imgs/hw_3_2b.png "Hard Shadow")
+
+To solve this, we introduce the concept of ***area lights***. In essence, the light source becomes an object with volume and surface area. A sphere, a very complex mesh, and whatever being modeled in the scene are capable of being an area light. We assume the light emits from the surface of the light source, so this is why we call them area lights instead of volume lights.
+
+But rendering area-light effects is not easy. In theory, an area light is an infinite collection of infinitesimal points, and we need to consider the radiance contribution from all of them. Mathematically, this is solving an integral, which cannot be done analytically on computers 99% of time.
+
+$$\int_{x \in S} f(x) \mathrm{d}A(x)$$
+
+where $\mathrm{d}A(x)$ means an infinitesimal area around x on the surface, and $f(x)$ is similar to the contribution of a single point light located at $x$:
+$$f(x) = \frac{K_d \cdot \max\left(n_s \cdot l, 0\right)}{\pi} \cdot \frac{I \max\left(-n_x \cdot l, 0\right)}{d^2} \cdot \text{visibility}$$
+
+Thus, we need a statistical method, ***Monte Carlo Integration***, to approximate the result. In plain language, it draws random samples in the domain you would integrate over, compute a finite sum from these samples to approximate the integral, an infinite sum.
+
+How to draw these samples is another non-trival question. Statistics API in most programming languages can generate a random sample from any common statistical distribution. But in the rendering context, the area-light shape is a geometry and doesn't fit any distribution. Instead, we need the sampling strategy for shape primitives like sphere and triangle. The formula derivation can be found easily online and we will just include the formula here. Assume we have 2 random numbers, $s$ and $t$, generated from a uniform distribution between 0 and 1, then
+
+- to uniformly sample a point represented by elevation angle $\theta$ and azumith angle $\phi$ on a spehrical surface:
+$$ \theta = cos^{-1}(1 - 2s); \phi = 2\pi t $$
+- to uniformly sample a point represented by barycentric coordinates ($b_1$, $b_2$) on a triangle:
+$$ b_1 = 1 - \sqrt{s}; b_2 = t \sqrt{s} $$
+Furthermore, we don't necessarily need to randomly sample the point across the entire surface, because in rendering, some region of a shape will be occuluded. Some improvements on the current sampling strategy are covered in the [Efficient Sampling Strategies](#efficient-sampling-strategies).
+
+### BRDF Importance Sampling
 
 ### Efficient Sampling Strategies
 
