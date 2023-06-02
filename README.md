@@ -113,11 +113,45 @@ $$ \theta = cos^{-1}(1 - 2s); \phi = 2\pi t $$
 $$ b_1 = 1 - \sqrt{s}; b_2 = t \sqrt{s} $$
 Furthermore, we don't necessarily need to randomly sample the point across the entire surface, because in rendering, some region of a shape will be occuluded. Some improvements on the current sampling strategy are covered in the [Efficient Sampling Strategies](#efficient-sampling-strategies).
 
-### BRDF Importance Sampling
+At last, the key of Monte Carlo Integration is to scale the sampled value by dividing the probability density of picking this sample. This will give us an unbiased estimate of the integral using one sample points. Here when we randomly pick a position on a sphere or triangle, the probability density is simply (1/area). To use multiple samples to reduce variance, we scale the values first then take the average.
 
 ### Efficient Sampling Strategies
 
+#### 1. Sample One Light at a Time
+
+For triangles, the area light property is bound to a trianle mesh instead of single triangles. My baseline area-light implementation suffers when we have a complex mesh as an area light. If the mesh has a million triangle, we need to sample a million times and sum up the radiance contribution from these one million triangles, and this brings the time complexity back to O(N).
+
+The fix isn't hard: we do a 2-step sampling. Before sampling a point on a triangle, we randomly pick several triangles from the complex mesh. A key design choice is to set the probability of being picked proportional to triangle areas. Other implementation details are included in the relative function comments.
+
+#### 2. Cone Sampling a Sphere
+
+![my_cone.png](img_png/hw3/my_cone.png)
+
+If we look closely at how a spherical area light illuminates a shading point, we will find that more than half of the surface region on the back is blocked by that the region on the front. This makes sampling on the entire sphere surface less effetive. Say we draw 8 samples from a spherical light but expect 4~5 of them being occuluded and thus give 0 contribution. We take average over 8 samples but only 3 of them are nonzero. We would like to ensure our sample points are always visible and give nonzero contribution, such that in the same scenario we only need to average over 3 samples.\
+
+And here comes the idea of Cone Sampling. From the shading point of view, the visible region is the spherical cap enclosed by a cone tangent to the sphere. This region is colored red in my figure. The size of the spherical cap is controlled by that $\theta_{max}$ whose cosine is computed by (radius / center_to_shading_point). Note that a sphere is a special spherical cap with $\theta_{max} = \pi$. Thus, the Cone Sampling formula becomes:
+$$ \theta = cos^{-1}(1 - (1-cos(\theta_{max}))s); \phi = 2\pi t $$
+and the surface area of a spherical cap is
+$$ 2\pi r^2 (1-cos(\theta_{max})) $$
+If you plug in $\theta_{max} = \pi$, you will get both formulas for a sphere.
+
+### 3. Stratified Sampling
+
+This could be the most extensivel used sampling strategy. The idea is simple: we subdivide the sampling domain and sample a point from each sub-region. This eliminates the rare case where most samples of shape are concentrated in a region and as a result we get a pixel too bright or too dark.
+
+I picked 2 common stratification methods for triangles and spheres. For a triangle, we connect the 3 middle points on the edges and divide the triangle into 4 equal-area parts. For a sphere, we divide the azmumith angle $\phi$, which ranges from 0 to $2\pi$, into 6 or 8 equally-spaced intervals. Intuitively, this works like dividing an orange into 6 or 8 slices.
+
+![face_baseline.png](./img_png/hw3/face_baseline.png "Uniform")
+![face_strat6.png](./img_png/hw3/face_strat6.png "Stratified")
+
+![cbox_baseline.png](./img_png/hw3/cbox_baseline.png "Uniform")
+![cbox_strat.png](./img_png/hw3/cbox_strat.png "Stratified")
+
+The head is illuminated by a spherical area light. We can clearly observe that those noisy tiny black dots almost disappear. The Cornell Box scene has triangle-mesh area light (that square on the ceiling). Its improvement is not as obvious, but you may still obverse the quality improvement around shadow.
+
 ### Path-Tracing
+
+### BRDF Importance Sampling
 
 ### BRDF for Different Materials
 
