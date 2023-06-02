@@ -62,7 +62,21 @@ Our renderer implements BVH. And the bounding volume we chose is the most common
 
 ### Motion Blur
 
-### Texture Mapping
+![stable.png](./img_png/hw2/stable.png "Stable")
+![motion_blur.png](./img_png/hw2/motion_blur.png "Motion Blur")
+
+Motion blur is a phenomenon occurred when a real camera captures photos of an object moving fast. The underlying physics is related to exposure time and photons and is quite involved. For our computer graphics artificial camera, what we need is to set a small start-to-end interval, like 1s, start position, and end position. When an object is hit by each ray, we generate a random time in the interval and use the interpolated position. This will create a blurry effect that suggests "this object is moving" to our brain.
+
+### UV Texture Mapping
+
+Textures are used almost everywhere in computer graphics. They are in image format and allow us to specify the appearance independent of the model complexity. In other words, you can attach a super high-resolution image to a plane consisting of 2 triangles, and you can also extrapolate a very small image across a complex mesh to represent patterns.
+
+A little bit more details: when a ray hit a triangle at position p, we can calculate a barycentric coordinate of p and use it as the UV coordinate to query/interpolate a pixel RGB value in the texture image space.
+
+The first image below is a low-polygonal mesh with a high-resolution texture. See `scenes/head`. The second image is a complex mesh with several simple textures that creates the brick pattern of the Sponza Palace. See `scenes/sponza`.
+
+![face_baseline.png](img_png/hw3/face_baseline.png)
+![sponza_texture.png](img_png/hw3/sponza_texture.png)
 
 ### Shading Normals
 
