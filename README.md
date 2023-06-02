@@ -80,6 +80,11 @@ The first image below is a low-polygonal mesh with a high-resolution texture. Se
 
 ### Shading Normals
 
+This is another brilliant idea invented by Phong. It makes a mesh look smoother and less polygonal, while not increasing the mesh complexity. It uses a similar idea as the UV texture mapping above. This time, the UV coordinate is used to interpolate the 3 vertex normals of the current triangle. This effectively turns a flat triangle in a mesh into a smoothly curved spherical triangle. The discrete change in the normal direction across the edge, which is the source of the polygonal look, will disappear.
+
+![stable.png](./img_png/hw2/stable.png "Without shading normal")
+![teapot_with_n.png](./img_png/hw3/teapot_with_n.png "With shading normal")
+
 ### Area Light (Monte Carlo Importance Sampling)
 
 ### Efficient Sampling Strategies
