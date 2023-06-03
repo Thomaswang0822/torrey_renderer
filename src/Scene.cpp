@@ -141,17 +141,17 @@ Scene::Scene(const ParsedScene &scene) :
         else if (auto *blph_m = get_if<ParsedBlinnPhongMicrofacet>(&parsed_mat)) {
             if (get_if<Vector3>(&blph_m->reflectance)) {
                 materials.push_back(
-                    BlinnPhongMicrofacet{get<Vector3>(blph_m->reflectance), blph_m->exponent}
+                    Microfacet{get<Vector3>(blph_m->reflectance), blph_m->exponent}
                 );
             }
             else if (get_if<ParsedImageTexture>(&blph_m->reflectance)) {
                 materials.push_back(
-                    BlinnPhongMicrofacet{get<ParsedImageTexture>(blph_m->reflectance), 
+                    Microfacet{get<ParsedImageTexture>(blph_m->reflectance), 
                         blph_m->exponent}
                 );
             }
             else {
-                Error("BlinnPhongMicrofacet reflectance: not Vector3 or ImageTexture.");
+                Error("Microfacet reflectance: not Vector3 or ImageTexture.");
             }
         }
         

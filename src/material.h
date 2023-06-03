@@ -184,7 +184,7 @@ struct BlinnPhong {
  *     http://graphicrants.blogspot.com/2013/08/specular-brdf-reference.html
  * 
  */
-struct BlinnPhongMicrofacet {
+struct Microfacet {
     Color reflectance; // Ks
     Real exponent; // alpha
 
@@ -278,6 +278,6 @@ using Material = std::variant<Diffuse,
                                     Plastic,
                                     Phong,
                                     BlinnPhong,
-                                    BlinnPhongMicrofacet>;
+                                    Microfacet>;
 
 

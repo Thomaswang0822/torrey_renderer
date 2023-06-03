@@ -211,7 +211,7 @@ Vector3 BVH_PixelColor(Scene& scene, ray& localRay, BVH_node& root,
         return L_emmision + blphBRDF * (1.0 / blphPDF)
             * BVH_PixelColor(scene, scatterRay, root, rng, recDepth-1);
     }
-    else if (BlinnPhongMicrofacet* micro_blphMat = get_if<BlinnPhongMicrofacet>(&currMaterial)) {
+    else if (Microfacet* micro_blphMat = get_if<Microfacet>(&currMaterial)) {
         // sample half vector h to estimate D(h)
         Basis basis = Basis::orthonormal_basis(rec.normal);
         Vector3 sample_h = dir_Phong_sample(rng, basis, micro_blphMat->exponent);
@@ -546,7 +546,7 @@ Sample BRDF_sample_dir(Material& currMaterial, Hit_Record& rec,
 
         return {out_dir, brdfValue, pdf, 0.0};
     }
-    else if (BlinnPhongMicrofacet* micro_blphMat = get_if<BlinnPhongMicrofacet>(&currMaterial)) {
+    else if (Microfacet* micro_blphMat = get_if<Microfacet>(&currMaterial)) {
         // sample half vector h to get out_dir AND estimate D(h)
         Basis basis = Basis::orthonormal_basis(rec.normal);
         Vector3 sample_h = dir_Phong_sample(rng, basis, micro_blphMat->exponent);
@@ -696,7 +696,7 @@ Sample Light_sample_dir(Scene& scene, Hit_Record& rec, BVH_node& root,
         brdfValue = blphMat->compute_BRDF(h, out_dir, rec);  // 2
         pdf_BRDF = isPossible? blphMat->compute_PDF(h, out_dir, rec) : 0.0;  // 3
     }
-    else if (BlinnPhongMicrofacet* micro_blphMat = get_if<BlinnPhongMicrofacet>(&currMaterial)) {
+    else if (Microfacet* micro_blphMat = get_if<Microfacet>(&currMaterial)) {
         Kd = eval_RGB(micro_blphMat->reflectance, rec.u, rec.v);
         brdfValue = micro_blphMat->compute_BRDF(h, in_dir, out_dir, rec);  // 2
         pdf_BRDF = isPossible? micro_blphMat->compute_PDF(h, out_dir, rec) : 0.0;
@@ -1001,7 +1001,7 @@ Vector3 compute_f_ptLight(Material& mat, const Vector3& in_dir,
         Kd = eval_RGB(blphMat->reflectance, rec.u, rec.v);
         brdfValue = blphMat->compute_BRDF(h, out_dir, rec);  // 2
     }
-    else if (BlinnPhongMicrofacet* micro_blphMat = get_if<BlinnPhongMicrofacet>(&mat)) {
+    else if (Microfacet* micro_blphMat = get_if<Microfacet>(&mat)) {
         Kd = eval_RGB(micro_blphMat->reflectance, rec.u, rec.v);
         brdfValue = micro_blphMat->compute_BRDF(h, in_dir, out_dir, rec);  // 2
     }
