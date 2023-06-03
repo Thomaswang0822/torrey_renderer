@@ -147,13 +147,103 @@ I picked 2 common stratification methods for triangles and spheres. For a triang
 ![cbox_baseline.png](./img_png/hw3/cbox_baseline.png "Uniform")
 ![cbox_strat.png](./img_png/hw3/cbox_strat.png "Stratified")
 
-The head is illuminated by a spherical area light. We can clearly observe that those noisy tiny black dots almost disappear. The Cornell Box scene has triangle-mesh area light (that square on the ceiling). Its improvement is not as obvious, but you may still obverse the quality improvement around shadow.
+The head is illuminated by a spherical area light. We can clearly observe that those noisy tiny black dots almost disappear. The Cornell Box scene has triangle-mesh area light (that square on the ceiling). Its improvement is not as obvious, but you may still obverse the quality improvement around the shadow boundary.
 
 ### Path-Tracing
 
+From now on, we shifts the underlying framework from ray-tracing to path-tracing.
+
+**First, what are their differences?** Their names are not informative enough. Both shoot camera rays and compute image pixel colors from the radiance received by those camera rays. Personally speaking, I would rather call them "deterministic ray-tracing" and "probabilistic ray-tracing". Diving a little deeper, we will know why one is deterministic and the other is probabilistic. The difference lies in when do we shoot an reflected ray at the current shading point and compute the radiance in the next recursion. In ray-tracing, we only shoot the reflected ray in the perfect mirror-reflection direction. With any incoming direction, we reflect it around the shading normal to obtain the mirror-reflection direction. This is "ray-tracing along a deterministic direction". On the other hand, in path-tracing, we always trace the ray along "some" direction. This direction, or more precisely, the probability distribution of the reflective direction, is determined by the physical model of the material at the shading point. Diffuse material, for example, assumes that an incoming ray can bounce off toward any direction above the shading surface with some probability distribution.
+
+**Next, why do we want path-tracing?** In short, path-tracing enable fully global illumination in our rendering. We may continue our discussion for the diffuse material as it exhibits the difference between the two frameworks. Instead of shooting a ray into a random direction and enter the next recursion, in ray-tracing, we calculate the contribution from all lights in the scene and terminate the recursion. This limitation of only considering light sources entirely overlooks the contribution from indirect lights--light reflected by other non-emitting objects. The 2 images below can illustrate the difference well:
+
+![rt_sphere3.png](./img_png/writeup/rt_sphere3.png "ray-tracing")
+![sphere3_MIS.png](./img_png/export/sphere3_MIS.png "path-tracing")
+
+The first image looks nice until you see the second one. You realize that the shadow region shouldn't be that intense because the light bounced off from the ground other spheres should illuminate it.
+
 ### BRDF Importance Sampling
 
+Path-tracing sounds promising, but how exactly should we decide which direction to reflect the ray and keep tracing? This is where the famous ***Bidirectional Radiance Distribution Function (BRDF)*** comes into action. BRDF takes in 2 inputs, an incoming ray direction and an outgoing (reflected) ray direction and describes the distribution radiance with respect to these in & out pairs.
+
+Thus, we must perform our sampling differently depending on the underlying BRDF of each material. To be more precise, now our sampling cannot consider the probability distribution of each direction alone. It must follow the BRDF and give more weight to the direction with higher radiance intensity. And this is called ***Importance Sampling**: sampling from important regions, ones that contribute more to the result, with high probability.
+
 ### BRDF for Different Materials
+
+Our renderer supports the following types of materials. We will discuss their physical properties and corresponding BRDF one by one. More details can be found in `materials.h`.
+
+#### 1. Diffuse
+
+The diffuse surface is almost always modeled by ***Lambertian Reflectance property*** plus ***Lambertian Cosine law***. In short, they assume that rays coming to a diffuse surface will scatter toward all directions on the hemisphere with equal probability, but the radiance intensity is proportional to the dot product (= cosine) between the shading normal and the scattering direction.
+
+Thus, for a diffuse surface, our sampling must follow a cosine sampling. The formula is the following:
+$$ \theta = cos^{-1}(\sqrt{1-s}); \phi = 2\pi t $$
+$$ x = cos(\phi)*cos(\theta); y = sin(\phi)*cos(\theta); z = sin(\phi) $$
+
+#### 2. Mirror
+
+Mirror material is the most special case, because we don't need importance sampling to decide an reflection direction at all. The perfect mirror-reflected direction has the probility of 1 being chosen.
+
+#### 3. Plastic
+
+We call it plastic, but similar phyisical properties are not limited to plastics. In general, many materials have two layers: most of the times they are a thin dielectric layer on the top, called coating, and a diffuse layer under the hood. Our plastic material is a special case where the top dielectric layer works like a mirror.
+
+In path-tracing, we decide to treat it as a diffuse material or a mirror probabilisticly. And the probability is described by ***Fresnel Effect***. It is a quite involved physical property, but the key takeaway is: it gives the amount of reflectance you see on a surface depending on the material property and the viewing angle.
+
+In real life, you may observe that the wood floor, especially the one with a wax coating, looks more diffuse-like from the top but more mirror-like at the gazing angle. This phenomenon can be modeled well by our renderer.
+
+![hw_3_3d.png](./handouts/imgs/hw_3_3d.png "Top View")
+![hw_3_3b.png](./handouts/imgs/hw_3_3b.png "Gazing Angle")
+
+#### 4. Phong BRDF
+
+Phong is not a physical materail. Instead, it's a model that fit well for a family of materials whose property lies between perfect mirror and perfect Lambertian diffuse. Intuitively, these materials will reflect rays in directions around the mirror-ray direction. The Phong BRDF is given by the following:
+$$ f_{Phong}(\omega_{in}, \omega_{out}) = K_s*\frac{\alpha + 1}{2\pi}*max(r \cdot \omega_{out}, 0)^{\alpha} \text{ if } n \cdot \omega_{out} > 0 \text{ else } 0$$
+where $K_s$ is the reflectance color, $r$ is the mirror reflection direction, and $\alpha$ is usually called the Phong exponent – the larger it is, the more mirror-like the material is.
+
+To importance sample from a Phong BRDF, we use the following formula:
+
+$$ \theta = cos^{-1}((1-s)^\frac{1}{\alpha + 1}); \phi = 2\pi t $$
+$$ x = cos(\phi)*cos(\theta); y = sin(\phi)*cos(\theta); z = sin(\phi) $$
+
+![hw_4_2c.png](./handouts/imgs/hw_4_2c.png "Phong Spheres")
+
+From left to right, the Phong exponents are 100, 40, 8, 1.
+
+#### 5. Blinn-Phong BRDF
+
+Similarly, Blinn-Phong is another theoretical model. It addresses 2 major issues brough by Phong model:
+
+1. The "directions around mirror-ray direction" can go below the shading surface at gazing angles. This introduces discontinuities of the distribution.
+2. It's not clear how we should blend Fresnel into the model, as Phong models directions around mirror-ray direction, but Fresnel models directions around shading normal.
+
+Blinn-Phong model introduces the concept of ***half vector $h$*** defined by
+$$ h = \frac{\omega_{in} + \omega_{out}}{\lVert \omega_{in} + \omega_{out} \rVert} $$
+The good things about half vector $h$ are that it behaves functionally similar to shading normal $n_s$, and $\omega_{in}$ and $\omega_{out}$ are centered around it. Instead of using $\omega_{out}$, Blinn-Phong BRDF gives the following: the outgoing ray has a higher chance in the direction reflected against half vector closer to the shading normal.
+
+$$ f_{BlinnPhong}(\omega_{in}, \omega_{out}) = \frac{\alpha + 2}{4\pi(2-2^{-\frac{\alpha}{2}})}*F_h*(n_s \cdot h)^{\alpha} \text{ if } n \cdot \omega_{out} > 0 \text{ else } 0$$
+$$ F_h = K_s + (1-K_s)(1-h \cdot \omega_{out})^5 $$
+
+For sampling, we use the same formula as Phong model, but we sample the half vector around shading normal instead of outgoing direction around mirror-ray direction. We do an additional step to reflect incoming ray against half vector to obtain outgoing direction.
+
+![hw_4_2f.png](./handouts/imgs/hw_4_2f.png "Blinn-Phong Spheres")
+
+#### 6. Microfacet
+
+Again, it's not a physical material. Microfacet Theory models the physical setting of the shading surface on a microscopic level and provide physical support to the heruistic-based Phong and Blinn-Phong models. In essence, the theory treats the shading surface as an infinite collection of tiny mirrors with different orientations, which are called *microfacets*. Their orientations are determined by their "micro-normals" $m$. How likely $\omega_{in}$ scatters along $\omega_{out}$ depends on how many of these microfacets have their $m = h$.
+
+$$ f_{microfacet}(\omega_{in}, \omega_{out}) = \frac{F_h \cdot D \cdot G}{4(n_s \cdot \omega_{in})} \text{ if } n \cdot \omega_{out} > 0 \text{ else } 0$$
+Here, $D$ is the ***Normal Distribution Function (NDF)*** that describes the distribution of micro-normals; $G$ is the geometric shadowing masking term, which accounts for the porortion of unblocked
+microfacets. I will not explain how the are defined, formulated, and computed, but these details can be found under the `struct Microfacet` under `materials.h`.
+
+Note that there are many NDFs, and our renderer implements two popular versions: Blinn-Phong NDF and GGX (means Ground Glass Unknown).
+
+The sampling formula for Blinn-Phong NDF is exactly the same as above. The formula for GGX is different. You can find it from equation (35) and (36) from [this paper](http://www.graphics.cornell.edu/~bjw/microfacetbsdf.pdf).
+
+![GGX.png](./img_png/hw4/GGX.png)
+![BlinnPhongD.png](./img_png/hw4/BlinnPhongD.png)
+
+First one uses GGX, second one uses BlinnPhong NDF.
 
 ### Multiple Importance Sampling
 
