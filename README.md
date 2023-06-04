@@ -237,7 +237,7 @@ $$ h = \frac{\omega_{in} + \omega_{out}}{\lVert \omega_{in} + \omega_{out} \rVer
 
 The good things about half vector $h$ are that it behaves functionally similar to shading normal $n_s$, and $\omega_{in}$ and $\omega_{out}$ are centered around it. Instead of using $\omega_{out}$, Blinn-Phong BRDF gives the following: the outgoing ray has a higher chance in the direction reflected against half vector closer to the shading normal.
 
-$$ f_{BlinnPhong}(\omega_{in}, \omega_{out}) = \frac{\alpha + 2}{4\pi(2-2^{-\frac{\alpha}{2}})}*F_h*(n_s \cdot h)^{\alpha} \text{ if } n \cdot \omega_{out} > 0 \text{ else } 0 $$
+$$ f_{BlinnPhong}(\omega_{in}, \omega_{out}) = \frac{\alpha + 2}{4\pi(2-2^{-\frac{\alpha}{2}})} F_h (n_s \cdot h)^{\alpha} \text{ if } n \cdot \omega_{out} > 0 \text{ else } 0 $$
 
 $$ F_h = K_s + (1-K_s)(1-h \cdot \omega_{out})^5 $$
 
