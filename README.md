@@ -231,7 +231,7 @@ Similarly, Blinn-Phong is another theoretical model. It addresses 2 major issues
 1. The "directions around mirror-ray direction" can go below the shading surface at gazing angles. This introduces discontinuities of the distribution.
 2. It's not clear how we should blend Fresnel into the model, as Phong models directions around mirror-ray direction, but Fresnel models directions around shading normal.
 
-Blinn-Phong model introduces the concept of ***half vector $h$*** defined by
+Blinn-Phong model introduces the concept of ***half vector*** $h$ defined by
 
 $$ h = \frac{\omega_{in} + \omega_{out}}{\lVert \omega_{in} + \omega_{out} \rVert} $$
 
