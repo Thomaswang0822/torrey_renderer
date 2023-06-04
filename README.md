@@ -107,11 +107,11 @@ Thus, we need a statistical method, ***Monte Carlo Integration***, to approximat
 
 How to draw these samples is another non-trival question. Statistics API in most programming languages can generate a random sample from any common statistical distribution. But in the rendering context, the area-light shape is a geometry and doesn't fit any distribution. Instead, we need the sampling strategy for shape primitives like sphere and triangle. The formula derivation can be found easily online and we will just include the formula here. Assume we have 2 random numbers, $s$ and $t$, generated from a uniform distribution between 0 and 1, then
 
-- to uniformly sample a point represented by elevation angle $\theta$ and azumith angle $\phi$ on a spehrical surface:
+- to uniformly sample a point represented by elevation angle $\theta$ and azimuth angle $\phi$ on a spehrical surface:
 $$ \theta = cos^{-1}(1 - 2s); \phi = 2\pi t $$
 - to uniformly sample a point represented by barycentric coordinates ($b_1$, $b_2$) on a triangle:
 $$ b_1 = 1 - \sqrt{s}; b_2 = t \sqrt{s} $$
-Furthermore, we don't necessarily need to randomly sample the point across the entire surface, because in rendering, some region of a shape will be occuluded. Some improvements on the current sampling strategy are covered in the [Efficient Sampling Strategies](#efficient-sampling-strategies).
+Furthermore, we don't necessarily need to randomly sample the point across the entire surface, because in rendering, some region of a shape will be occluded. Some improvements on the current sampling strategy are covered in the [Efficient Sampling Strategies](#efficient-sampling-strategies).
 
 At last, the key of Monte Carlo Integration is to scale the sampled value by dividing the probability density of picking this sample. This will give us an unbiased estimate of the integral using one sample points. Here when we randomly pick a position on a sphere or triangle, the probability density is simply (1/area). To use multiple samples to reduce variance, we scale the values first then take the average.
 
@@ -119,7 +119,7 @@ At last, the key of Monte Carlo Integration is to scale the sampled value by div
 
 #### 1. Sample One Light at a Time
 
-For triangles, the area light property is bound to a trianle mesh instead of single triangles. My baseline area-light implementation suffers when we have a complex mesh as an area light. If the mesh has a million triangle, we need to sample a million times and sum up the radiance contribution from these one million triangles, and this brings the time complexity back to O(N).
+For triangles, the area light property is bound to a triangle mesh instead of single triangles. My baseline area-light implementation suffers when we have a complex mesh as an area light. If the mesh has a million triangle, we need to sample a million times and sum up the radiance contribution from these one million triangles, and this brings the time complexity back to O(N).
 
 The fix isn't hard: we do a 2-step sampling. Before sampling a point on a triangle, we randomly pick several triangles from the complex mesh. A key design choice is to set the probability of being picked proportional to triangle areas. Other implementation details are included in the relative function comments.
 
@@ -127,7 +127,7 @@ The fix isn't hard: we do a 2-step sampling. Before sampling a point on a triang
 
 ![my_cone.png](img_png/hw3/my_cone.png)
 
-If we look closely at how a spherical area light illuminates a shading point, we will find that more than half of the surface region on the back is blocked by that the region on the front. This makes sampling on the entire sphere surface less effetive. Say we draw 8 samples from a spherical light but expect 4~5 of them being occuluded and thus give 0 contribution. We take average over 8 samples but only 3 of them are nonzero. We would like to ensure our sample points are always visible and give nonzero contribution, such that in the same scenario we only need to average over 3 samples.\
+If we look closely at how a spherical area light illuminates a shading point, we will find that more than half of the surface region on the back is blocked by that the region on the front. This makes sampling on the entire sphere surface less effective. Say we draw 8 samples from a spherical light but expect 4~5 of them being occluded and thus give 0 contribution. We take average over 8 samples but only 3 of them are nonzero. We would like to ensure our sample points are always visible and give nonzero contribution, such that in the same scenario we only need to average over 3 samples.\
 
 And here comes the idea of Cone Sampling. From the shading point of view, the visible region is the spherical cap enclosed by a cone tangent to the sphere. This region is colored red in my figure. The size of the spherical cap is controlled by that $\theta_{max}$ whose cosine is computed by (radius / center_to_shading_point). Note that a sphere is a special spherical cap with $\theta_{max} = \pi$. Thus, the Cone Sampling formula becomes:
 $$ \theta = cos^{-1}(1 - (1-cos(\theta_{max}))s); \phi = 2\pi t $$
@@ -137,9 +137,9 @@ If you plug in $\theta_{max} = \pi$, you will get both formulas for a sphere.
 
 ### 3. Stratified Sampling
 
-This could be the most extensivel used sampling strategy. The idea is simple: we subdivide the sampling domain and sample a point from each sub-region. This eliminates the rare case where most samples of shape are concentrated in a region and as a result we get a pixel too bright or too dark.
+This could be the most extensively used sampling strategy. The idea is simple: we subdivide the sampling domain and sample a point from each sub-region. This eliminates the rare case where most samples of shape are concentrated in a region and as a result we get a pixel too bright or too dark.
 
-I picked 2 common stratification methods for triangles and spheres. For a triangle, we connect the 3 middle points on the edges and divide the triangle into 4 equal-area parts. For a sphere, we divide the azmumith angle $\phi$, which ranges from 0 to $2\pi$, into 6 or 8 equally-spaced intervals. Intuitively, this works like dividing an orange into 6 or 8 slices.
+I picked 2 common stratification methods for triangles and spheres. For a triangle, we connect the 3 middle points on the edges and divide the triangle into 4 equal-area parts. For a sphere, we divide the azimuth angle $\phi$, which ranges from 0 to $2\pi$, into 6 or 8 equally-spaced intervals. Intuitively, this works like dividing an orange into 6 or 8 slices.
 
 ![face_baseline.png](./img_png/hw3/face_baseline.png "Uniform")
 ![face_strat6.png](./img_png/hw3/face_strat6.png "Stratified")
@@ -182,13 +182,13 @@ $$ x = cos(\phi)*cos(\theta); y = sin(\phi)*cos(\theta); z = sin(\phi) $$
 
 #### 2. Mirror
 
-Mirror material is the most special case, because we don't need importance sampling to decide an reflection direction at all. The perfect mirror-reflected direction has the probility of 1 being chosen.
+Mirror material is the most special case, because we don't need importance sampling to decide an reflection direction at all. The perfect mirror-reflected direction has the probability of 1 being chosen.
 
 #### 3. Plastic
 
-We call it plastic, but similar phyisical properties are not limited to plastics. In general, many materials have two layers: most of the times they are a thin dielectric layer on the top, called coating, and a diffuse layer under the hood. Our plastic material is a special case where the top dielectric layer works like a mirror.
+We call it plastic, but similar physical properties are not limited to plastics. In general, many materials have two layers: most of the times they are a thin dielectric layer on the top, called coating, and a diffuse layer under the hood. Our plastic material is a special case where the top dielectric layer works like a mirror.
 
-In path-tracing, we decide to treat it as a diffuse material or a mirror probabilisticly. And the probability is described by ***Fresnel Effect***. It is a quite involved physical property, but the key takeaway is: it gives the amount of reflectance you see on a surface depending on the material property and the viewing angle.
+In path-tracing, we decide to treat it as a diffuse material or a mirror probabilistically. And the probability is described by ***Fresnel Effect***. It is a quite involved physical property, but the key takeaway is: it gives the amount of reflectance you see on a surface depending on the material property and the viewing angle.
 
 In real life, you may observe that the wood floor, especially the one with a wax coating, looks more diffuse-like from the top but more mirror-like at the gazing angle. This phenomenon can be modeled well by our renderer.
 
@@ -212,7 +212,7 @@ From left to right, the Phong exponents are 100, 40, 8, 1.
 
 #### 5. Blinn-Phong BRDF
 
-Similarly, Blinn-Phong is another theoretical model. It addresses 2 major issues brough by Phong model:
+Similarly, Blinn-Phong is another theoretical model. It addresses 2 major issues brought by Phong model:
 
 1. The "directions around mirror-ray direction" can go below the shading surface at gazing angles. This introduces discontinuities of the distribution.
 2. It's not clear how we should blend Fresnel into the model, as Phong models directions around mirror-ray direction, but Fresnel models directions around shading normal.
@@ -230,11 +230,10 @@ For sampling, we use the same formula as Phong model, but we sample the half vec
 
 #### 6. Microfacet
 
-Again, it's not a physical material. Microfacet Theory models the physical setting of the shading surface on a microscopic level and provide physical support to the heruistic-based Phong and Blinn-Phong models. In essence, the theory treats the shading surface as an infinite collection of tiny mirrors with different orientations, which are called *microfacets*. Their orientations are determined by their "micro-normals" $m$. How likely $\omega_{in}$ scatters along $\omega_{out}$ depends on how many of these microfacets have their $m = h$.
+Again, it's not a physical material. Microfacet Theory models the physical setting of the shading surface on a microscopic level and provide physical support to the heuristic-based Phong and Blinn-Phong models. In essence, the theory treats the shading surface as an infinite collection of tiny mirrors with different orientations, which are called *microfacets*. Their orientations are determined by their "micro-normals" $m$. How likely $\omega_{in}$ scatters along $\omega_{out}$ depends on how many of these microfacets have their $m = h$.
 
 $$ f_{microfacet}(\omega_{in}, \omega_{out}) = \frac{F_h \cdot D \cdot G}{4(n_s \cdot \omega_{in})} \text{ if } n \cdot \omega_{out} > 0 \text{ else } 0$$
-Here, $D$ is the ***Normal Distribution Function (NDF)*** that describes the distribution of micro-normals; $G$ is the geometric shadowing masking term, which accounts for the porortion of unblocked
-microfacets. I will not explain how the are defined, formulated, and computed, but these details can be found under the `struct Microfacet` under `materials.h`.
+Here, $D$ is the ***Normal Distribution Function (NDF)*** that describes the distribution of micro-normals; $G$ is the geometric shadowing masking term, which accounts for the proportion of unblocked microfacets. I will not explain how the are defined, formulated, and computed, but these details can be found under the `struct Microfacet` under `materials.h`.
 
 Note that there are many NDFs, and our renderer implements two popular versions: Blinn-Phong NDF and GGX (means Ground Glass Unknown).
 
@@ -260,11 +259,11 @@ In this section, we will discuss the vanilla version of Multiple Importance Samp
 
 "One-sample" means at any shading point, we sample a single direction and trace the outgoing ray along it. We just stated that we want to both sampling strategy, but computability limited us from tracing both a BRDF direction and a light direction, because with each ray splitting into 2, the recursion will grow exponentially.
 
-Combining different samples of the same sampling strategy is straightforward -- you just take the average. But combining the results from different sampling strategies requires some mathematically rigourous insight. First, let's look at the precise, analytical version of the famous ***Rendering Equation***:
+Combining different samples of the same sampling strategy is straightforward -- you just take the average. But combining the results from different sampling strategies requires some mathematically rigorous insight. First, let's look at the precise, analytical version of the famous ***Rendering Equation***:
 
 $$ L = L_e + \int_{\omega_{out} \in \Omega}^{} f(\omega_{in}, \omega_{out}) \cdot L_i(\omega_{out}, ...) d\omega_{out}  $$
 
-The total spectual radiance $L$ at the current shading point = how much light emitted by itself, called "emitted spectral radiance" $L_e$ + the sum of all spectual radiance at different outgoing direction $\omega_{out}$ scaled by the BRDF $f$.
+The total spectral radiance $L$ at the current shading point = how much light emitted by itself, called "emitted spectral radiance" $L_e$ + the sum of all spectral radiance at different outgoing direction $\omega_{out}$ scaled by the BRDF $f$.
 
 With Monte Carlo Importance Sampling approximation, its discrete version is:
 $$ L = L_e + \frac{1}{n} \sum_{\omega_{out} \in \Omega}^{} \frac{f(\omega_{in}, \omega_{out})}{pdf(\omega_{out})} \cdot L_i(\omega_{out}, ...) $$
@@ -277,13 +276,31 @@ The core of one-sample MIS is to use a blended pdf from the pdfs from those 2 sa
 $$ pdf(\omega_{out}) = \frac{pdf_{light}(\omega_{out}) + pdf_{BRDF}(\omega_{out})}{2} $$
 to the Rendering Equation above. This idea turns the task of computing 2 results from 2 sampling strategies to scaling a single result from the probability density of the 2 strategies.
 
-At last, you may notice a key difference between the 2 sampling approaches. BRDF sampling looks for a random direction, but light sampling looks for a random position on some shape. More precisely, BRDF sampling approximates an integral over $d\omega_{out}$, which is called ***solid angle***, the infinitesimal area on a unit sphere/hemisphere covered by the direction. (Rememeber that we can use a unit hemisphere to represent all possible directions, because they are just unit vectors.) On the other hand, the light sampling approximates an integral over $dx$, the infinitesimal area on the surface of the area light. The conversion factor, usually referred to as ***Jacobian***, is given by
+At last, you may notice a key difference between the 2 sampling approaches. BRDF sampling looks for a random direction, but light sampling looks for a random position on some shape. More precisely, BRDF sampling approximates an integral over $d\omega_{out}$, which is called ***solid angle***, the infinitesimal area on a unit sphere/hemisphere covered by the direction. (Remember that we can use a unit hemisphere to represent all possible directions, because they are just unit vectors.) On the other hand, the light sampling approximates an integral over $dx$, the infinitesimal area on the surface of the area light. The conversion factor, usually referred to as ***Jacobian***, is given by
 $$ \lvert\frac{dx}{d\omega_{out}}\rvert  = \frac{d^2}{\lvert \omega_{out} \cdot n_x \rvert}$$
 where $d$ is the distance from shading point to $x$. The derivation of this conversion factor will not be further discussed here, but it ensures $pdf_{BRDF}$ and $pdf_{light}$ are on the same infinitesimal measurement.
 
 ### Deterministic MIS
 
+Next, we introduce an improvement to the one-sample MIS above, called ***deterministic MIS***. This is a more common choice in modern path-tracers, because it offers better rendering result. Its key difference from one-sample MIS is the following: it samples 2 directions from the 2 sampling approaches, but the recursion is only carried for the BRDF-sampling direction. For the light-sampling direction, we deterministically compute the contribution from lights. In this way, we manage to look at 2 directions at each shading point but end up enter one recursion. Note that one-sample MIS has $n=1$, in terms of formula, the difference is
+$$ L = L_e + \frac{f(\omega_{in}, \omega_{out})}{pdf(\omega_{out})} \cdot L_i(\omega_{out}, ...) \textnormal{\qquad one-sample MIS}$$
+$$ L = L_e + \frac{f(x) \cdot L_{light}(x, ...)}{pdf_{light}(x) + pdf_{BRDF}(x)} + \frac{f(\omega_{in}, \omega_{out}) \cdot L_i(\omega_{out}, ...)}{pdf_{light}(\omega_{out}) + pdf_{BRDF}(\omega_{out})} \textnormal{\qquad deterministic MIS}$$
+where $L_i()$ is a recursive function call but $L_{light}()$ is not.
+
+The 2 pairs below (first deterministic MIS, second one-sample MIS) can illustrate the improvement.
+
+![cbox_MIS.png](./img_png/hw4/deterMIS/cbox_MIS.png)
+![hw_4_3b.png](./handouts/imgs/hw_4_3b.png)
+![mi_MIS.png](./img_png/hw4/deterMIS/mi_MIS.png)
+![hw_4_3c.png](./img_png/export/mi.png)
+
 ### Russian Roulette
+
+Its original meaning is that people gamble their own life by filling in one or more bullets to a revolver and pull the trigger in turns. The "game" stops when the unlucky guy shoots himself dead. In the rendering context, Russian Roulette means probabilistically terminate a recursive path. It offers a more adaptive recursions by allowing more steps for those contributive recursive calls and fewer steps for those making little difference.
+
+Its most important idea is to dynamically compute the termination probability according to "how significant is the radiance contribution at the current level of recursion?" If you think of the recursion in an iterative (for-loop) framework and temporarily ignore the self-emittance, the contribution from radiance $L_i$ in the next iteration is scaled by $\frac{f()}{pdf()}$ at the current iteration. Thus, we can keep track of a variable $\beta$ which accumulates the multiplication of these scaling factors. The smaller $\beta$ is, the more likely we will terminate the tracing, because that means only a small proportion of the radiance in current iteration will contribute to the original radiance, which belongs to the shading point hit by the camera ray and rendered in the image.
+
+At last, to maintain an unbiased estimation, we need to scale the $\beta$ up by $1-p$, where $p$ is the probability being computed to terminate the tracing.
 
 ## Attribute
 
@@ -294,7 +311,7 @@ All the low-level implementation details and design decisions are made by myself
 - [Starter code by Professor Li](https://github.com/BachiLi/torrey_public)
 - [Course Slides](https://cseweb.ucsd.edu/~tzli/cse168/sp2023/) attached to the course website.
 - [Ray Tracing in One Weekend series](https://raytracing.github.io/), the famous ray-tracing tutorial series.
-- [Physically-based Rendering: from Theory to Implementation](https://www.pbr-book.org/), the famous PBTR book.
+- [Physically-based Rendering: from Theory to Implementation](https://www.pbr-book.org/), the famous PBRT book.
 - [Eric Veach's thesis](https://graphics.stanford.edu/papers/veach_thesis/), the famous "Bible" for rendering theory foundation.
 - Many utilities used by the starter code, see [starter code README](https://github.com/BachiLi/torrey_public#acknowledgement)
 - And many other papers/theses for particular techniques. They are attached to the homework specification files and also in the @ref section of my code implementation.

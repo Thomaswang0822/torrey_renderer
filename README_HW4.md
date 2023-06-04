@@ -18,7 +18,7 @@ I will just put a bigger image of dining-room scene rendered with deterministic 
 This is an unfinished bonus from HW3. I will not include code here this time
 since it becomes too long. All the details are in `struct SphTriangle` plus `Vector3 SphTri_sample` in helper.h.
 
-The hardest part, in my point of view, is not understanding the paper or implmenting the sampling function pseudocode it gives, but figuring out how to compute the internal angles of a spherical triangle. Professor Chern pointed me to one of his recent papers which has a clear formula for this. Special thanks to him.
+The hardest part, in my point of view, is not understanding the paper or implementing the sampling function pseudocode it gives, but figuring out how to compute the internal angles of a spherical triangle. Professor Chern pointed me to one of his recent papers which has a clear formula for this. Special thanks to him.
 
 To be honest, the rendering gets slower and the result gets more noisy. But this is expected, because this Spherical Triangle sampling becomes efficient when you sample multiple points on the same triangle, which I didn't. Thus, each time I project a triangle light to the local unit sphere and do many calculation, but end up only sampling one point from it.
 
