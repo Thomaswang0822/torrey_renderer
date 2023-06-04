@@ -247,6 +247,42 @@ First one uses GGX, second one uses BlinnPhong NDF.
 
 ### Multiple Importance Sampling
 
+So far, our path-tracing seems to work out by importance sampling $\omega_{out}$ according to the BRDF of the material. We stop sampling from (area) light sources, because both direct illuminations (light rays from light sources) and indirect illuminations (light rays bounce off from other surfaces) are under the consideration of BRDF importance sampling.
+
+But when can this go wrong? The answer is when some area lights are intense but very small, which will lead to some very noisy pixels in the rendering. For a pixel, when some camera rays (remember the antialiasing technique we use) eventually and luckily hit a small area light, the pixel will be bright. But if unfortunately, none of them hit any small area light, the pixel would be dark. And you realize that point lights we used at the beginning cannot be supported at all, because a point light is an extreme of above cases and every ray has 0 probability to hit a point light.
+
+![mi_noMIS.png](./img_png/export/mi_noMIS.png "Without MIS")
+![mi.png](./img_png/export/mi.png "With MIS")
+
+How do we solve this? The easy answer is to do both, and this is called ***Multiple Importance Sampling (MIS)***. The terminology here starts to get confusing, so I'd like to offer an explanation based on personal understanding, before I dive into the formula. "Multiple" actually means 2, because we do both BRDF sampling a direction $\omega_{out}$ and light sampling a position. Within light sampling strategy, we can get "multiple" samples and average them out.
+
+In this section, we will discuss the vanilla version of Multiple Importance Sampling called one-sample MIS. See [Deterministic MIS](#deterministic-mis) below for an improved version.
+
+"One-sample" means at any shading point, we sample a single direction and trace the outgoing ray along it. We just stated that we want to both sampling strategy, but computability limited us from tracing both a BRDF direction and a light direction, because with each ray splitting into 2, the recursion will grow exponentially.
+
+Combining different samples of the same sampling strategy is straightforward -- you just take the average. But combining the results from different sampling strategies requires some mathematically rigourous insight. First, let's look at the precise, analytical version of the famous ***Rendering Equation***:
+
+$$ L = L_e + \int_{\omega_{out} \in \Omega}^{} f(\omega_{in}, \omega_{out}) \cdot L_i(\omega_{out}, ...) d\omega_{out}  $$
+
+The total spectual radiance $L$ at the current shading point = how much light emitted by itself, called "emitted spectral radiance" $L_e$ + the sum of all spectual radiance at different outgoing direction $\omega_{out}$ scaled by the BRDF $f$.
+
+With Monte Carlo Importance Sampling approximation, its discrete version is:
+$$ L = L_e + \frac{1}{n} \sum_{\omega_{out} \in \Omega}^{} \frac{f(\omega_{in}, \omega_{out})}{pdf(\omega_{out})} \cdot L_i(\omega_{out}, ...) $$
+
+The $pdf$ is the probability density function that measures how likely do we sample this particular direction. $n$ is the number of samples we take, and because of the recursion computability described above, we choose $n=1$, "one-sample", for now.
+
+There are several other pieces we must consider. First, how to use both sampling strategy but can only generate one sample $\omega_{out}$? The answer is we choose randomly, by programmatically "flipping a coin".
+
+The core of one-sample MIS is to use a blended pdf from the pdfs from those 2 sampling strategy. One good mathematical property with probability density is that any linear combination of 2 pdfs is guaranteed to also be a pdf. And since we pick BRDF sampling and light sampling by flipping a coin, our blended pdf should give them equal weight. That is saying, we plug in
+$$ pdf(\omega_{out}) = \frac{pdf_{light}(\omega_{out}) + pdf_{BRDF}(\omega_{out})}{2} $$
+to the Rendering Equation above. This idea turns the task of computing 2 results from 2 sampling strategies to scaling a single result from the probability density of the 2 strategies.
+
+At last, you may notice a key difference between the 2 sampling approaches. BRDF sampling looks for a random direction, but light sampling looks for a random position on some shape. More precisely, BRDF sampling approximates an integral over $d\omega_{out}$, which is called ***solid angle***, the infinitesimal area on a unit sphere/hemisphere covered by the direction. (Rememeber that we can use a unit hemisphere to represent all possible directions, because they are just unit vectors.) On the other hand, the light sampling approximates an integral over $dx$, the infinitesimal area on the surface of the area light. The conversion factor, usually referred to as ***Jacobian***, is given by
+$$ \lvert\frac{dx}{d\omega_{out}}\rvert  = \frac{d^2}{\lvert \omega_{out} \cdot n_x \rvert}$$
+where $d$ is the distance from shading point to $x$. The derivation of this conversion factor will not be further discussed here, but it ensures $pdf_{BRDF}$ and $pdf_{light}$ are on the same infinitesimal measurement.
+
+### Deterministic MIS
+
 ### Russian Roulette
 
 ## Attribute
