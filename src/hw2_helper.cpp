@@ -3,7 +3,7 @@
 using namespace hw2;
 
 bool hw2::isVisible(Vector3& shadingPt, Vector3& lightPos, Scene& scene) {
-    double d = distance(shadingPt, lightPos);
+    Real d = distance(shadingPt, lightPos);
     // shot ray from light to shadingPt
     ray lightRay(lightPos, shadingPt, true);
     // test hitting point
@@ -36,7 +36,7 @@ Vector3 hw2::computeDiffuseColor(Scene& scene, Vector3 normal,
                 // abs(dot(normal, l)) can be replaced by using helper function below
                 // (incomingRayOutside(-l, normal))? dot(normal, -l):dot(normal, -l);
                 // but obviously it's unnecessary here.
-                result += Kd * std::max( abs(dot(normal, l)), 0.0 ) * 
+                result += Kd * std::max( abs(dot(normal, l)), 0.f ) * 
                     c_INVPI * ptLight->intensity / dsq;
             }
         } 
@@ -144,7 +144,7 @@ bool hw2::RayIntersectsTriangle(ray localRay,
         // only update storage variables before returning true
         dist = t;
         outIntersectionPoint = localRay.at(t);
-        baryC = {1.0-u-v, u, v};
+        baryC = {1.f-u-v, u, v};
         return true;
     }
     else {// This means a line intersection but not a ray intersection.
@@ -177,7 +177,7 @@ bool hw2::RayIntersectsAny_Naive(ray localRay,
 
 Vector3 hw2::bbox_color(vector<AABB> bboxes, ray& localRay) {
     for (AABB bbox : bboxes) {
-        if (bbox.hit(localRay, 0.0, infinity<double>())) {
+        if (bbox.hit(localRay, 0.0, infinity<Real>())) {
             return Vector3(1.0, 1.0, 1.0);
         }
     }

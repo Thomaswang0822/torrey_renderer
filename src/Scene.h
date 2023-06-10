@@ -22,7 +22,7 @@ struct Camera
         Vector3 lookfrom,
         Vector3 lookat,
         Vector3 vup,
-        double vfov, // vertical field-of-view in degrees
+        Real vfov, // vertical field-of-view in degrees
         int width,
         int height  // w and h of image
     ) : origin(lookfrom), lookat(lookat), up(vup), vfov(vfov)
@@ -31,7 +31,7 @@ struct Camera
         Real aspect_ratio = Real(width) / height;
         auto theta = radians(vfov);
         auto h = tan(theta / 2);
-        auto viewport_height = 2.0 * h;
+        auto viewport_height = 2.f * h;
         auto viewport_width = aspect_ratio * viewport_height;
 
         auto w = normalize(lookfrom - lookat); // opposite camera focus direction
@@ -40,7 +40,7 @@ struct Camera
 
         horizontal = viewport_width * u;
         vertical = viewport_height * v;
-        lower_left_corner = lookfrom - horizontal / 2.0 - vertical / 2.0 - w;
+        lower_left_corner = lookfrom - horizontal / 2.f - vertical / 2.f - w;
     }
 
     Camera(const ParsedCamera& pCam) :
@@ -48,7 +48,7 @@ struct Camera
         Camera(pCam.lookfrom, pCam.lookat, pCam.up, pCam.vfov, pCam.width, pCam.height)
     {};
 
-    ray get_ray(double offset_u, double offset_v) const
+    ray get_ray(Real offset_u, Real offset_v) const
     {
         return ray(
             origin,
@@ -69,7 +69,7 @@ struct AABB {
     AABB(const Vector3& a, const Vector3& b) : 
         minimum(a), maximum(b) {};
 
-    bool hit(const ray& r, double t_min, double t_max) const {
+    bool hit(const ray& r, Real t_min, Real t_max) const {
         // for each xyz axis
         for (int a = 0; a < 3; a++) {
             auto invD = 1.0f / r.dir[a];
@@ -98,7 +98,7 @@ struct AABB {
     }
 
     Vector3 center() {
-        return 0.5 * (minimum + maximum);
+        return 0.5f * (minimum + maximum);
     }
 };
 
@@ -121,7 +121,7 @@ struct Sphere : public ShapeBase {
         box = AABB(pos-r, pos+r);
     };
 
-    void get_sphere_uv(Vector3 normal, double& u, double& v) {
+    void get_sphere_uv(Vector3 normal, Real& u, Real& v) {
         auto theta = acos(-normal.y);
         auto phi = atan2(-normal.z, normal.x) + c_PI;
 
@@ -151,16 +151,16 @@ struct TriangleMesh : public ShapeBase {
         positions(pMesh.positions), indices(pMesh.indices), 
         normals(pMesh.normals), uvs(pMesh.uvs),
         size((int)pMesh.indices.size()),
-        areaCDF(pMesh.indices.size() + 1, 0.0)
+        areaCDF(pMesh.indices.size() + 1, 0.f)
     {
         // areaCDF will be populated in Scene constructor after
         // all Triangles are created
     }
 
     // given a Unif(0,1), return it's corresponding sample triangle
-    int which_tri(double rd) {
+    int which_tri(Real rd) {
         // upper_bound because we want
-        // [0, 0.4, 0.8, 1.0] searching 0.4 should gives 1
+        // [0, 0.4, 0.8, 1.f] searching 0.4 should gives 1
         auto it = std::upper_bound(areaCDF.begin(), areaCDF.end(), rd);
         std::size_t index = std::distance(areaCDF.begin(), it - 1);
         return static_cast<int>(index);
@@ -172,7 +172,7 @@ struct Triangle : public ShapeBase{
     Vector3 n0, n1, n2;
     Vector3 normal;  // may need triangle normal
     Vector3 e1, e2;  // p1-p0, p2-p0; not normalized
-    double area;
+    Real area;
     int face_id = -1;
     int mesh_id = -1;   // in order to retrieve material and light id
     AABB box;   // has default constructor
@@ -195,7 +195,7 @@ struct Triangle : public ShapeBase{
         p1 = mesh->positions[id3[1]];
         p2 = mesh->positions[id3[2]];
         e1 = p1 - p0;  e2 = p2 - p0;
-        area = 0.5 * length(cross(e1, e2));
+        area = 0.5f * length(cross(e1, e2));
         // write normals
         normal = normalize(cross(e1, e2));
         if (mesh->normals.size() > 0) {
@@ -225,17 +225,17 @@ struct Triangle : public ShapeBase{
     }
 
     // uv of a point requires vertex uv info => non-static
-    void get_tri_uv(Real b1, Real b2, double& rec_u, double& rec_v) {
+    void get_tri_uv(Real b1, Real b2, Real& rec_u, Real& rec_v) {
         assert(hasUV && "Calling get_tri_uv() on Triangle without uv");
 
-        rec_u = (1.0 - b1 - b2) * uv0.x + b1 * uv1.x + b2 * uv2.x;
-        rec_v = (1.0 - b1 - b2) * uv0.y + b1 * uv1.y + b2 * uv2.y;
+        rec_u = (1.f - b1 - b2) * uv0.x + b1 * uv1.x + b2 * uv2.x;
+        rec_v = (1.f - b1 - b2) * uv0.y + b1 * uv1.y + b2 * uv2.y;
     }
 
     // interpolate 3 vertex normals with baryC
-    inline Vector3 shading_normal(double b1, double b2) {
+    inline Vector3 shading_normal(Real b1, Real b2) {
         return normalize(
-            (1.0-b1-b2) * n0 +
+            (1.f-b1-b2) * n0 +
             b1 * n1 +
             b2 * n2
         );

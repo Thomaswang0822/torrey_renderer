@@ -207,7 +207,7 @@ ParsedTriangleMesh parse_serialized(const fs::path &filename,
 
     ParsedTriangleMesh mesh;
     if (file_double_precision) {
-        mesh.positions = load_position<double>(zs, vertex_count);
+        mesh.positions = load_position<Real>(zs, vertex_count);
     } else {
         mesh.positions = load_position<float>(zs, vertex_count);
     }
@@ -217,7 +217,7 @@ ParsedTriangleMesh parse_serialized(const fs::path &filename,
 
     if (flags & EHasNormals) {
         if (file_double_precision) {
-            mesh.normals = load_normal<double>(zs, vertex_count);
+            mesh.normals = load_normal<Real>(zs, vertex_count);
         } else {
             mesh.normals = load_normal<float>(zs, vertex_count);
         }
@@ -228,7 +228,7 @@ ParsedTriangleMesh parse_serialized(const fs::path &filename,
 
     if (flags & EHasTexcoords) {
         if (file_double_precision) {
-            mesh.uvs = load_uv<double>(zs, vertex_count);
+            mesh.uvs = load_uv<Real>(zs, vertex_count);
         } else {
             mesh.uvs = load_uv<float>(zs, vertex_count);
         }
@@ -237,7 +237,7 @@ ParsedTriangleMesh parse_serialized(const fs::path &filename,
     if (flags & EHasColors) {
         // Ignore the color attributes.
         if (file_double_precision) {
-            load_color<double>(zs, vertex_count);
+            load_color<Real>(zs, vertex_count);
         } else {
             load_color<float>(zs, vertex_count);
         }

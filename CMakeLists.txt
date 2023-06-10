@@ -27,8 +27,6 @@ set(SRCS src/3rdparty/miniz.h
          src/3rdparty/tinyply.h
          src/compute_normals.h
          src/flexception.h
-         src/hw1.h
-         src/hw1_scenes.h
          src/hw2.h
          src/hw3.h
          src/hw4.h
@@ -53,7 +51,6 @@ set(SRCS src/3rdparty/miniz.h
          src/Hit_Record.h
          src/compute_radiance.h
          src/compute_normals.cpp
-         src/hw1.cpp
          src/hw2.cpp
          src/hw2_helper.cpp
          src/hw3.cpp

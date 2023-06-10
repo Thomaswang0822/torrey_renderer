@@ -8,7 +8,7 @@ struct Hit_Record {
     Vector3 normal;
     int mat_id;
     Real dist;  // hit distance
-    double u, v;  // uv coordinate of hit point local to hit obj
+    Real u, v;  // uv coordinate of hit point local to hit obj
     bool front_face;
 
     // Default constructor: set hitDist = infinity

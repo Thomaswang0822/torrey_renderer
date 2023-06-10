@@ -34,7 +34,7 @@ Image3 hw_3_1(const std::vector<std::string> &params) {
     
     // BEGIN: rewrite hw_1_8() code
     int spp = myScene.samples_per_pixel;
-    double inv_spp = 1.0 / spp;
+    Real inv_spp = 1.0 / spp;
     Image3 img(myScene.width, myScene.height);
     Camera cam = myScene.camera;
 
@@ -63,8 +63,8 @@ Image3 hw_3_1(const std::vector<std::string> &params) {
                 pixel_color = {0.0, 0.0, 0.0};
                 for (int s=0; s<spp; ++s) {    
                     // shoot a ray
-                    u = Real(x + next_pcg32_real<double>(rng)) / (img.width - 1);
-                    v = Real(y + next_pcg32_real<double>(rng)) / (img.height - 1);
+                    u = Real(x + next_pcg32_real<Real>(rng)) / (img.width - 1);
+                    v = Real(y + next_pcg32_real<Real>(rng)) / (img.height - 1);
                     localRay = cam.get_ray(u, v);
                     
                     // CHANGE: call computePixelColor() which deal with hit & no-hit

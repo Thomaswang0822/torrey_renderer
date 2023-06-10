@@ -53,8 +53,8 @@ BVH_node::BVH_node(std::vector<shared_ptr<Shape>>& objects, Scene& scene,
     Vector3 camOrigin = scene.camera.origin;
     std::sort(meshBVH.begin(), meshBVH.end(),
               [&camOrigin](const std::shared_ptr<BVH_node> a, const std::shared_ptr<BVH_node> b) {
-                  double dist_a = distance_squared(a.get()->box.center(), camOrigin);
-                  double dist_b = distance_squared(b.get()->box.center(), camOrigin);
+                  Real dist_a = distance_squared(a.get()->box.center(), camOrigin);
+                  Real dist_b = distance_squared(b.get()->box.center(), camOrigin);
                   return dist_a < dist_b;
               }  // lambda function
     );
@@ -277,7 +277,7 @@ AABB rangeAABB(std::vector<std::shared_ptr<Shape>>& objects,
 
 /* ### BVH-version ### */
 bool isVisible(const Vector3& shadingPt, Vector3& lightPos, Scene& scene, BVH_node& root) {
-    double d = distance(shadingPt, lightPos);
+    Real d = distance(shadingPt, lightPos);
     // shot ray from light to shadingPt
     ray lightRay(lightPos, shadingPt, true);
     // test hitting point with BVH

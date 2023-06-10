@@ -44,7 +44,7 @@ ParsedTriangleMesh parse_ply(const fs::path &filename, const Matrix4x4 &to_world
                 Vector3{data[3 * i], data[3 * i + 1], data[3 * i + 2]});
         }
     } else if (vertices->t == tinyply::Type::FLOAT64) {
-        double *data = (double*)vertices->buffer.get();
+        Real *data = (Real*)vertices->buffer.get();
         for (size_t i = 0; i < vertices->count; i++) {
             mesh.positions[i] = xform_point(to_world,
                 Vector3{data[3 * i], data[3 * i + 1], data[3 * i + 2]});
@@ -58,7 +58,7 @@ ParsedTriangleMesh parse_ply(const fs::path &filename, const Matrix4x4 &to_world
                 mesh.uvs[i] = Vector2{data[2 * i], data[2 * i + 1]};
             }
         } else if (uvs->t == tinyply::Type::FLOAT64) {
-            double *data = (double*)uvs->buffer.get();
+            Real *data = (Real*)uvs->buffer.get();
             for (size_t i = 0; i < uvs->count; i++) {
                 mesh.uvs[i] = Vector2{data[2 * i], data[2 * i + 1]};
             }
@@ -73,7 +73,7 @@ ParsedTriangleMesh parse_ply(const fs::path &filename, const Matrix4x4 &to_world
                     Vector3{data[3 * i], data[3 * i + 1], data[3 * i + 2]});
             }
         } else if (normals->t == tinyply::Type::FLOAT64) {
-            double *data = (double*)normals->buffer.get();
+            Real *data = (Real*)normals->buffer.get();
             for (size_t i = 0; i < normals->count; i++) {
                 mesh.normals[i] = xform_normal(inverse(to_world),
                     Vector3{data[3 * i], data[3 * i + 1], data[3 * i + 2]});

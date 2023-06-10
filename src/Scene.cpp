@@ -58,7 +58,7 @@ Scene::Scene(const ParsedScene &scene) :
             }
             // normalize the accumulated area and write to the mesh
             std::transform(cdf.begin(), cdf.end(), cdf.begin(), 
-                std::bind1st(std::multiplies<double>(), 1.0 / totalArea)
+                std::bind1st(std::multiplies<Real>(), 1.0 / totalArea)
             );
             cdf.back() = 1.0;  // avoid 0-probability numerical issue
             meshes[tri_mesh_count].areaCDF = cdf;

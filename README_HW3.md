@@ -116,7 +116,7 @@ Vector3 meshLight_total_contribution(Scene& scene, Hit_Record& rec, BVH_node& ro
     }
 
     // given a Unif(0,1), return it's corresponding sample triangle
-    int which_tri(double rd) {
+    int which_tri(Real rd) {
         // upper_bound because we want
         // [0, 0.4, 0.8, 1.0] searching 0.4 should gives 1
         auto it = std::upper_bound(areaCDF.begin(), areaCDF.end(), rd);
@@ -198,9 +198,9 @@ Here is the helper struct I created. I will finish this and submit it with HW4.
  */
 struct SphTriangle {
     Vector3 A,B,C;  // vertices
-    double area;
-    double alpha, beta, gamma;  // internal angles
-    double a,b,c;  // edge lengths
+    Real area;
+    Real alpha, beta, gamma;  // internal angles
+    Real a,b,c;  // edge lengths
 
     SphTriangle(const Triangle* tri, Vector3 center) {
         Vector3 oA = normalize(tri->p0 - center);

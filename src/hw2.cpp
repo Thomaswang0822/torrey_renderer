@@ -23,7 +23,7 @@ Image3 hw_2_1(const std::vector<std::string> &params) {
             tri_params.push_back(std::stof(params[i]));
         }
     }
-    double inv_spp = 1.0 / spp;
+    Real inv_spp = 1.0 / spp;
 
     if (tri_params.size() < 9) {
         // Not enough parameters to parse the triangle vertices.
@@ -57,8 +57,8 @@ Image3 hw_2_1(const std::vector<std::string> &params) {
             Vector3 pixel_color = {0.0, 0.0, 0.0};
             for (int s=0; s<spp; ++s) { 
                 // shoot a random ray
-                u = Real(x + next_pcg32_real<double>(rng)) / (img.width - 1);
-                v = Real(y + next_pcg32_real<double>(rng)) / (img.height - 1);
+                u = Real(x + next_pcg32_real<Real>(rng)) / (img.width - 1);
+                v = Real(y + next_pcg32_real<Real>(rng)) / (img.height - 1);
                 localRay = cam.get_ray(u, v);
 
                 // NEW: ray triangle intersection
@@ -92,7 +92,7 @@ Image3 hw_2_2(const std::vector<std::string> &params) {
             spp = std::stoi(params[++i]);
         }
     }
-    double inv_spp = 1.0 / spp;
+    Real inv_spp = 1.0 / spp;
 
     std::vector<Vector3> positions = {
         Vector3{ 0.0,  0.5, -2.0},
@@ -139,8 +139,8 @@ Image3 hw_2_2(const std::vector<std::string> &params) {
             Vector3 pixel_color = {0.0, 0.0, 0.0};
             for (int s=0; s<spp; ++s) { 
                 // shoot a random ray
-                u = Real(x + next_pcg32_real<double>(rng)) / (img.width - 1);
-                v = Real(y + next_pcg32_real<double>(rng)) / (img.height - 1);
+                u = Real(x + next_pcg32_real<Real>(rng)) / (img.width - 1);
+                v = Real(y + next_pcg32_real<Real>(rng)) / (img.height - 1);
                 localRay = cam.get_ray(u, v);
 
                 // NEW: ray triangle-soup intersection
@@ -181,7 +181,7 @@ Image3 hw_2_3(const std::vector<std::string> &params) {
     // std::cout << "myScene.shapes has length: " << myScene.shapes.size() << std::endl;
     // BEGIN: rewrite hw_1_8() code
     int spp = myScene.samples_per_pixel;
-    double inv_spp = 1.0 / spp;
+    Real inv_spp = 1.0 / spp;
     Image3 img(myScene.width, myScene.height);
     Camera cam = myScene.camera;
 
@@ -210,8 +210,8 @@ Image3 hw_2_3(const std::vector<std::string> &params) {
                 pixel_color = {0.0, 0.0, 0.0};
                 for (int s=0; s<spp; ++s) {    
                     // shoot a ray
-                    u = Real(x + next_pcg32_real<double>(rng)) / (img.width - 1);
-                    v = Real(y + next_pcg32_real<double>(rng)) / (img.height - 1);
+                    u = Real(x + next_pcg32_real<Real>(rng)) / (img.width - 1);
+                    v = Real(y + next_pcg32_real<Real>(rng)) / (img.height - 1);
                     localRay = cam.get_ray(u, v);
                     
                     // CHANGE: call computePixelColor() which deal with hit & no-hit
@@ -242,7 +242,7 @@ Image3 hw_2_4(const std::vector<std::string> &params) {
     std::cout << "ParsedScene Copied to myScene. Took " << 
             tick(timer) << " seconds." << std::endl;
     int spp = myScene.samples_per_pixel;
-    double inv_spp = 1.0 / spp;
+    Real inv_spp = 1.0 / spp;
     Image3 img(myScene.width, myScene.height);
     Camera cam = myScene.camera;
 
@@ -276,8 +276,8 @@ Image3 hw_2_4(const std::vector<std::string> &params) {
                 pixel_color = {0.0, 0.0, 0.0};
                 for (int s=0; s<spp; ++s) {    
                     // shoot a ray
-                    u = Real(x + next_pcg32_real<double>(rng)) / (img.width - 1);
-                    v = Real(y + next_pcg32_real<double>(rng)) / (img.height - 1);
+                    u = Real(x + next_pcg32_real<Real>(rng)) / (img.width - 1);
+                    v = Real(y + next_pcg32_real<Real>(rng)) / (img.height - 1);
                     localRay = cam.get_ray(u, v);
                     
                     // hw_2_4 UPDATE: use bbox_color()
@@ -326,7 +326,7 @@ Image3 hw_2_5(const std::vector<std::string> &params) {
     
     // BEGIN: rewrite hw_1_8() code
     int spp = myScene.samples_per_pixel;
-    double inv_spp = 1.0 / spp;
+    Real inv_spp = 1.0 / spp;
     Image3 img(myScene.width, myScene.height);
     Camera cam = myScene.camera;
 
@@ -355,8 +355,8 @@ Image3 hw_2_5(const std::vector<std::string> &params) {
                 pixel_color = {0.0, 0.0, 0.0};
                 for (int s=0; s<spp; ++s) {    
                     // shoot a ray
-                    u = Real(x + next_pcg32_real<double>(rng)) / (img.width - 1);
-                    v = Real(y + next_pcg32_real<double>(rng)) / (img.height - 1);
+                    u = Real(x + next_pcg32_real<Real>(rng)) / (img.width - 1);
+                    v = Real(y + next_pcg32_real<Real>(rng)) / (img.height - 1);
                     localRay = cam.get_ray(u, v);
                     
                     // CHANGE: call computePixelColor() which deal with hit & no-hit

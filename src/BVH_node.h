@@ -53,7 +53,7 @@ struct BVH_node {
 inline int random_int(int min, int max, pcg32_state &rng) {
     // Returns a random integer in [min,max].
     return static_cast<int>(
-        next_pcg32_real<double>(rng) * (max-min+1)
+        next_pcg32_real<Real>(rng) * (max-min+1)
     ) + min;
 }
 

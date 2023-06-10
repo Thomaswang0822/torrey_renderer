@@ -212,9 +212,9 @@ inline bool closeToZero(Real x) {
  * @ref https://stackoverflow.com/a/596243
  * 
  * @param rgb 
- * @return double 
+ * @return Real 
  */
-inline double Luminance(Vector3& rgb) {
+inline Real Luminance(Vector3& rgb) {
     return 0.2126*rgb.x + 0.7152*rgb.y + 0.0722*rgb.z;
 }
 
