@@ -9,25 +9,25 @@
 // From RTOW, ray.h
 // Both point3 and vec3 are Vector3 in our context
 struct ray {
-        ray() {}
-        ray(const Vector3& origin, const Vector3& direction)
-            : orig(origin), dir(normalize(direction))
-        {}
-        // 3rd Constructor: use orig and target point
-        ray(const Vector3& origin, const Vector3& target, bool dummy)
-            : orig(origin)
-        {
-            this->dir = normalize(target - origin);
-        }
+    ray() {}
+    ray(const Vector3& origin, const Vector3& direction)
+        : orig(origin), dir(normalize(direction))
+    {}
+    // 3rd Constructor: use orig and target point
+    ray(const Vector3& origin, const Vector3& target, bool dummy)
+        : orig(origin)
+    {
+        this->dir = normalize(target - origin);
+    }
 
-        Vector3 at(Real t) const {
-            return orig + t*dir;
-        }
+    Vector3 at(Real t) const {
+        return orig + t*dir;
+    }
 
 
-        int src = -1;    // Debug: which sphere (surface) it originates from
-        Vector3 orig;
-        Vector3 dir;
+    int src = -1;    // Debug: which sphere (surface) it originates from
+    Vector3 orig;
+    Vector3 dir;
 };
 
 inline ray mirror_ray(ray& rayIn, Vector3 outNormal, Vector3& hitPt) {

@@ -109,6 +109,137 @@ void checkRayTriHit(ray localRay,
 }
 
 
+/* void checkRayTriHit(ray localRay,
+                    Triangle* tri,
+                    Hit_Record& rec,
+                    Shape*& hitObj)
+{
+    // <<Translate vertices based on ray origin>>
+    Vector3 p0t = tri->p0 - localRay.orig;
+    Vector3 p1t = tri->p1 - localRay.orig;
+    Vector3 p2t = tri->p2 - localRay.orig;
+    // <<Permute components of triangle vertices and ray direction>>
+    Real absDx = abs(localRay.dir.x);
+    Real absDy = abs(localRay.dir.y);
+    Real absDz = abs(localRay.dir.z);
+    int kz = (absDx > absDy && absDx > absDz)? 0 : 
+        (absDy > absDx && absDy > absDz)? 1 : 2;
+    int kx = kz + 1; if (kx == 3) kx = 0;
+    int ky = kx + 1; if (ky == 3) ky = 0;
+    Vector3 d = {localRay.dir[kx], localRay.dir[ky], localRay.dir[kz]};
+    p0t = {p0t[kx], p0t[ky], p0t[kz]};
+    p1t = {p1t[kx], p1t[ky], p1t[kz]};
+    p2t = {p2t[kx], p2t[ky], p2t[kz]};
+    // <<Apply shear transformation to translated vertex positions>> 
+    Real Sx = -d.x / d.z;
+    Real Sy = -d.y / d.z;
+    Real Sz = 1.f / d.z;
+    p0t.x += Sx * p0t.z;
+    p0t.y += Sy * p0t.z;
+    p1t.x += Sx * p1t.z;
+    p1t.y += Sy * p1t.z;
+    p2t.x += Sx * p2t.z;
+    p2t.y += Sy * p2t.z;
+    // <<Compute edge function coefficients e0, e1, and e2>> 
+    Real e0 = p1t.x * p2t.y - p1t.y * p2t.x;
+    Real e1 = p2t.x * p0t.y - p2t.y * p0t.x;
+    Real e2 = p0t.x * p1t.y - p0t.y * p1t.x;
+    // <<Fall back to double-precision test at triangle edges>> 
+    if (e0 == 0.0f || e1 == 0.0f || e2 == 0.0f) {
+        double p2txp1ty = (double)p2t.x * (double)p1t.y;
+        double p2typ1tx = (double)p2t.y * (double)p1t.x;
+        e0 = (float)(p2typ1tx - p2txp1ty);
+        double p0txp2ty = (double)p0t.x * (double)p2t.y;
+        double p0typ2tx = (double)p0t.y * (double)p2t.x;
+        e1 = (float)(p0typ2tx - p0txp2ty);
+        double p1txp0ty = (double)p1t.x * (double)p0t.y;
+        double p1typ0tx = (double)p1t.y * (double)p0t.x;
+        e2 = (float)(p1typ0tx - p1txp0ty);
+    }
+    // <<Perform triangle edge and determinant tests>> 
+    if ((e0 < 0 || e1 < 0 || e2 < 0) && (e0 > 0 || e1 > 0 || e2 > 0))
+        return;
+    Real det = e0 + e1 + e2;
+    if (det == 0.f)
+        return;
+    // <<Compute scaled hit distance to triangle and test against ray  range>> 
+    p0t.z *= Sz; p1t.z *= Sz; p2t.z *= Sz;
+    Real tScaled = e0 * p0t.z + e1 * p1t.z + e2 * p2t.z;
+    if (det < 0 && (tScaled >= 0 || tScaled < rec.dist * det))
+        return;
+    else if (det > 0 && (tScaled <= 0 || tScaled > rec.dist * det))
+        return;
+    // <<Compute barycentric coordinates and  value for triangle intersection>> 
+    Real invDet = 1 / det;
+    Real b0 = e0 * invDet;
+    Real b1 = e1 * invDet;
+    Real b2 = e2 * invDet;
+    Real t = tScaled * invDet;
+    // <<Ensure that computed triangle t is conservatively greater than zero>>
+    // z error
+    Real maxZt = max(abs(Vector3(p0t.z, p1t.z, p2t.z)));
+    Real deltaZ = gamma(3) * maxZt;
+    // x,y error
+    Real maxXt = max(abs(Vector3(p0t.x, p1t.x, p2t.x)));
+    Real maxYt = max(abs(Vector3(p0t.y, p1t.y, p2t.y)));
+    Real deltaX = gamma(5) * (maxXt + maxZt);
+    Real deltaY = gamma(5) * (maxYt + maxZt);
+    // e error
+    Real deltaE = 2 * (gamma(2) * maxXt * maxYt + deltaY * maxXt +
+                                 deltaX * maxYt);
+    // t error
+    Float maxE = max(abs(Vector3f(e0, e1, e2)));
+    Float deltaT = 3 * (gamma(3) * maxE * maxZt + deltaE * maxZt +
+                        deltaZ * maxE) * std::abs(invDet);
+    if (t <= deltaT)
+        return;
+
+    // <<Compute triangle partial derivatives>>
+    Vector3 dpdu, dpdv;
+    Vector2 uv[3];
+    if (tri->hasUV) {
+        uv[0] = tri->uv0; uv[1] = tri->uv1; uv[2] = tri->uv2;
+    } else {
+        uv[0] = {0.f, 0.f}; uv[1] = {0.f, 1.f}; uv[2] = {1.f, 1.f};
+    }
+    // <<Compute deltas for triangle partial derivatives>>
+    Vector2 duv02 = uv[0] - uv[2], duv12 = uv[1] - uv[2];
+    Vector3 dp02 = tri->p0 - tri->p2, dp12 = tri->p1 - tri->p2;
+    Real determinant = duv02[0] * duv12[1] - duv02[1] * duv12[0];
+    if (determinant == 0.f) {
+        // <<Handle zero determinant for triangle partial derivative matrix>>
+        Basis basis = Basis::orthonormal_basis(normalize(cross(tri->p2 - tri->p0, tri->p1 - tri->p0)));
+        dpdu = basis.u; dpdv = basis.v;
+    } else {
+        float invdet = 1 / determinant;
+        dpdu = ( duv12[1] * dp02 - duv02[1] * dp12) * invdet;
+        dpdv = (-duv12[0] * dp02 + duv02[0] * dp12) * invdet;
+    }
+
+    // <<Compute error bounds for triangle intersection>>
+    Real xAbsSum = (abs(b0 * tri->p0.x) + abs(b1 * tri->p1.x) +
+                    abs(b2 * tri->p2.x));
+    Real yAbsSum = (abs(b0 * tri->p0.y) + abs(b1 * tri->p1.y) +
+                    abs(b2 * tri->p2.y));
+    Real zAbsSum = (abs(b0 * tri->p0.z) + abs(b1 * tri->p1.z) +
+                    abs(b2 * tri->p2.z));
+    Vector3 pError = gamma(7) * Vector3(xAbsSum, yAbsSum, zAbsSum);
+
+    // <<Interpolate  parametric coordinates and hit point>> 
+    Vector3 pHit = b0 * tri->p0 + b1 * tri->p1 + b2 * tri->p2;
+    Vector2 uvHit = b0 * uv[0] + b1 * uv[1] + b2 * uv[2];
+    
+    // <<Fill in SurfaceInteraction from triangle hit>>
+    rec.dist = t;
+    rec.pos = pHit;
+    rec.u = uvHit.x; rec.v = uvHit.y;
+    Vector3 shadingNormal = tri->shading_normal(rec.u, rec.v);
+    rec.set_face_normal(localRay, shadingNormal);
+    rec.mat_id = tri->material_id;
+    hitObj = static_cast<Shape*>(static_cast<void*>(tri));
+} */
+
+
 void checkRayShapeHit(ray localRay,
                     Shape& curr_shape,
                     Hit_Record& rec,
@@ -259,8 +390,8 @@ Vector3 Sphere_sample_cone(const Sphere* sph, pcg32_state& rng,
     // plug in formula; turn into world coordinate
     return sph->position + 
         local_p.x * world_basis.u +
-        local_p.y * world_basis.v_up +
-        local_p.z * world_basis.w;
+        local_p.y * world_basis.v +
+        local_p.z * world_basis.w_up;
 }
 
 

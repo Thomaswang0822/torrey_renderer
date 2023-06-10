@@ -30,7 +30,7 @@ void checkRaySceneHit(ray localRay,
                       Shape*& hitObj);
 
 struct Basis {
-    Vector3 u, v_up, w;
+    Vector3 u, v, w_up;
 
     /**
      * @brief Given a normalized vector, use it as up-Z vector
@@ -52,7 +52,7 @@ struct Basis {
     }
 
     inline Vector3 local2world(const Vector3& pos) {
-        return pos.x * u + pos.y * v_up + pos.z * w;
+        return pos.x * u + pos.y * v + pos.z * w_up;
     }
 };
 

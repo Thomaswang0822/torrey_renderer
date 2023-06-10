@@ -242,6 +242,11 @@ inline T length_squared(const TVector3<T> &v) {
 }
 
 template <typename T>
+inline TVector3<T> abs(const TVector3<T> &v) {
+    return TVector3<T>{abs(v.x), abs(v.y), abs(v.z)};
+}
+
+template <typename T>
 inline T length(const TVector3<T> &v) {
     return sqrt(length_squared(v));
 }
