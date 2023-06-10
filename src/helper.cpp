@@ -41,7 +41,9 @@ void checkRaySphereHit(ray localRay,
     // Valid Update (found a closer hit) when reaching here
     rec.dist = root;
     rec.pos = localRay.at(root);
-    Vector3 outward_normal = (rec.pos - sph->position) / sph->radius;
+    // robust update: project hit pos to the sphere surface
+    Vector3 outward_normal = normalize(rec.pos - sph->position);
+    rec.pos = sph->position + sph->radius * outward_normal;
     rec.set_face_normal(localRay, outward_normal);
     sph->get_sphere_uv(outward_normal, rec.u, rec.v);
     rec.mat_id = sph->material_id;

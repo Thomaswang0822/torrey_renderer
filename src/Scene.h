@@ -75,8 +75,11 @@ struct AABB {
             auto invD = 1.0f / r.dir[a];
             auto t0 = (minimum[a] - r.orig[a]) * invD;
             auto t1 = (maximum[a] - r.orig[a]) * invD;
+            // Watertight robust ray-bbox intersection
+            t1 *= 1 + 2 * gamma(3);
             if (invD < 0.0f)
                 std::swap(t0, t1);
+            
             t_min = t0 > t_min ? t0 : t_min;
             t_max = t1 < t_max ? t1 : t_max;
             if (t_max < t_min)

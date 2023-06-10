@@ -50,6 +50,8 @@ set(SRCS src/3rdparty/miniz.h
          src/all_utils.h
          src/Hit_Record.h
          src/compute_radiance.h
+         src/float_utils.h
+         src/EFloat.h
          src/compute_normals.cpp
          src/hw2.cpp
          src/hw2_helper.cpp

@@ -11,3 +11,5 @@
 #include "timer.h"
 #include "transform.h"
 #include "vector.h"
+#include "float_utils.h"
+#include "EFloat.h"
