@@ -52,7 +52,7 @@ void checkRaySphereHit(ray localRay,
 }
 
 
-void checkRayTriHit(ray localRay,
+/* void checkRayTriHit(ray localRay,
                     Triangle* tri,
                     Hit_Record& rec,
                     Shape*& hitObj)
@@ -108,8 +108,9 @@ void checkRayTriHit(ray localRay,
     }
 }
 
+ */
 
-/* void checkRayTriHit(ray localRay,
+void checkRayTriHit(ray localRay,
                     Triangle* tri,
                     Hit_Record& rec,
                     Shape*& hitObj)
@@ -237,7 +238,7 @@ void checkRayTriHit(ray localRay,
     rec.set_face_normal(localRay, shadingNormal);
     rec.mat_id = tri->material_id;
     hitObj = static_cast<Shape*>(static_cast<void*>(tri));
-} */
+}
 
 
 void checkRayShapeHit(ray localRay,
